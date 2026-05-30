@@ -590,7 +590,19 @@ and placement + IC pin-side arrangement in the layout YAML. Nothing is retyped.
       below, connectors at edges). Rotate multi-pin connectors so their stubs don't collide
       (the J3 balance-header → `rotation: 270` lesson in the reference).
 
-2. **Generate:**
+2. **Pre-build gate — check the layout/BOM against the fact cards** (`check_cards.py`).
+   This catches intrinsic-fact drift (a `symbols:` pin name/type or a BOM footprint that
+   no longer matches the verified `{MPN}.facts.yaml` card) *before* the build, and enforces
+   that every IC's card is `pinout_verified`:
+   ```bash
+   python check_cards.py {project}_06_layout.yaml {project}_03_bom_flat.md \
+       --cards-dir {project}_datasheets --json
+   ```
+   **0 errors required.** On a mismatch, fix the *doc* to match the card (or, if the card
+   itself is wrong, re-run the Stage 4 pinout re-derivation). This complements the engine's
+   pin-*number* gate below by covering pin name/type + footprint, which the engine can't see.
+
+3. **Generate:**
    ```bash
    python generate_from_data.py {project}_05b_netlist.yaml {project}_03_bom_flat.md \
        {project}_06_layout.yaml -o {project}.kicad_sch
@@ -603,8 +615,10 @@ and placement + IC pin-side arrangement in the layout YAML. Nothing is retyped.
    intentional T-joints, so a missing junction is an unintended wire collision — the
    balance-tap-to-GND short class). **The engine refuses to save a file with any error.**
 
-3. **Fix loop (max 3 iterations).** Map each error to its cause and edit the *data*, not
+4. **Fix loop (max 3 iterations).** Map each error to its cause and edit the *data*, not
    generated geometry:
+   - `pin_name/type_mismatch` / `footprint_mismatch` / `pinout_unverified` (from
+     `check_cards`) → reconcile the doc with the card, or re-run the Stage 4 re-derivation.
    - `no placement` / `no BOM line` / `not declared in netlist` → reconcile the three docs.
    - `symbol pin-set != netlist pin-set` → fix the pin numbers in `symbols:` (or the netlist).
    - `missing_junction` → a stub collided; nudge or **rotate** the offending part (rotating a

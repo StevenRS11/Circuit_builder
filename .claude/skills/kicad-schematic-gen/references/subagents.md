@@ -218,18 +218,20 @@ main thread must not then re-introduce that bias when reading the answer.
   transcription drift the card exists to kill). These are the exact fields the
   deterministic scripts (`check_pcbway`, `cross_check_bom`, `generate_from_data`) and
   the verifier subagents consume.
-- **Verify the authored docs back against the cards.** Before the Stage 6 build, confirm
-  every intrinsic field in the BOM/layout matches its card: BOM `footprint`/`lib_id` ==
-  `card.kicad.*`, and each IC's `symbols:` pin `number`/`name`/`type` == `card.pins`
-  (only on a card with `pinout_verified: true`). A mismatch is drift — fix the *doc* to
-  match the card (or, if the card is wrong, re-run recipe C). The engine's existing
-  `symbol pin-set == netlist pin-set` gate backstops the pin numbers; this adds the
-  name/type/footprint coverage the engine can't see.
-  > **Next step (not yet built):** this card↔doc check is currently a main-thread/
-  > verify-subagent directive. The natural mechanization is a small `check_cards.py`
-  > (or a `--cards` mode on `cross_check_bom.py`) that does the join deterministically
-  > and fails on drift — a pure verifier, no judgment, fully in-lane with the hierarchy.
-  > Build it when the card format has proven out on a real run.
+- **Verify the authored docs back against the cards — run `check_cards.py`.** Before the
+  Stage 6 build, the deterministic verifier joins the cards against the layout YAML + flat
+  BOM (on `lib_id`) and fails on any drift: BOM `footprint` == `card.kicad.footprint`,
+  each IC's `symbols:` pin `number`/`name`/`type` == `card.pins`, and the card's
+  `pinout_verified` must be true (`pinout_unverified` is an error). It also warns on an
+  IC `symbols:` entry with **no** card (`ic_without_card`; error under `--strict`).
+  ```bash
+  python check_cards.py {project}_06_layout.yaml {project}_03_bom_flat.md \
+      --cards-dir {project}_datasheets --json
+  ```
+  A mismatch is drift — fix the *doc* to match the card (or, if the card is wrong, re-run
+  recipe C). This is a **pure verifier, no judgment** — fully in-lane with the hierarchy.
+  It complements the engine's `symbol pin-set == netlist pin-set` gate (which backstops
+  pin *numbers*) by adding the name/type/footprint coverage the engine can't see.
 - **Validate completeness on return, and don't proceed with a hole.** A subagent may
   return `null` (the user skipped it) or partial rows. Filter nulls; for any role
   missing a required field (no `lib_id`, no in-stock `distributor_pn`), **re-dispatch
