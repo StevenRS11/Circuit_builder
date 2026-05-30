@@ -34,6 +34,51 @@ The loop, mapped to the stages and scripts:
 
 Every script in `scripts/` is verify/analyze/lookup only, except the builder library (`generate_kicad_sch.py`) and the assembler (`generate_from_data.py`) — both of which only ever act on Claude-authored data. Keep it that way.
 
+### Subagents and the datasheet cache
+
+Subagents are how the loop's *verify* legs get an **independent** check. The main
+thread can't honestly re-check its own reasoning — it's already invested in its
+choices. A subagent's **isolated context literally can't see that reasoning**, so
+its verdict is unbiased. Isolation is the feature. The rule:
+
+- **Use subagents for the `research` leg and the *non-scriptable* `verify` legs** —
+  Stage 2 per-candidate sourcing, the Stage 2 `[CRITICAL]` requirement check, the
+  Stage 4 independent pinout re-derivation, and the Stage 7 structural design review.
+  Hand each one **explicit, frozen inputs** (the approved prior-stage doc + the
+  canonical datasheet) and **never the answer you're hoping for.**
+- **Keep the `author` legs (Stages 5b/6) and every user gate on the main thread.**
+  Authoring needs the full design context, and **subagents can't talk to the user**,
+  so anything that pauses for sign-off is main-thread by nature.
+- **Never wrap the deterministic scripts in a subagent** — call them directly.
+
+**Honor what they report.** A verify subagent's verdict is authoritative within its
+scope — **do not overturn a `fails`/disagreement with your own reasoning** (that bias is
+exactly what it was spawned to bypass). A failing check has three responses only: fix
+the frozen inputs and re-run, reselect/redesign, or surface the verdict + citation to
+the user — never "proceed anyway." Persist each verdict + citation into the durable
+artifact (traceability YAML / review doc), and a `satisfied` verdict never excuses
+skipping the deterministic scripts. For research, **the returned rows are the candidate
+set**: synthesize from them (don't re-run from memory), carry `MPN`/`distributor_pn`/
+`lib_id`/`footprint`/`datasheet_path` forward *verbatim* into the BOM and traceability,
+re-dispatch on any gap, and reuse the cached `datasheet_path` as the input to the
+verify subagents.
+
+**Datasheet cache + fact cards:** research stages save each canonical datasheet
+**once** to `{outputs}/{project_name}_datasheets/{MPN}.pdf` (with an `index.md`
+citation ledger), so every downstream verifier reads the *same* frozen artifact
+instead of re-fetching. Alongside each, the research subagent writes a structured
+**`{MPN}.facts.yaml` fact card** holding the part's *intrinsic* facts —
+sourcing, `lib_id`, `footprint`, and the pinout (number/name/type) — **not** any
+per-design connectivity/placement (that judgment stays Claude-authored). The card is
+the authoritative source the intrinsic BOM/`symbols:` fields are copied from and
+verified back against: the Stage 4 pinout re-derivation validates the card, and the
+Stage 7 review checks the schematic's pins/footprints against it. Cards seed from /
+get promoted into `pinouts/pinout_db.json`.
+
+See **`references/subagents.md`** for the per-stage recipes (exact context to hand
+each subagent, return schema, and answer-blind prompt skeletons) and the cache
+mechanics.
+
 ## Stage Overview
 
 ```
@@ -181,7 +226,20 @@ Because PCBway sources and assembles every part, **choosing parts PCBway can com
 
 **Rule of thumb:** if it's a common part that JLCPCB/LCSC stocks in quantity in a standard SMT package, PCBway sources it easily and cheaply. The more a part deviates from that, the more it costs and the more likely it stalls the order. When two parts are otherwise equal, pick the one with more distributor stock and a second source.
 
-**What Claude does:**
+**Run sourcing as a per-role subagent fan-out.** Steps 1-6 below are research — many
+web searches and library lookups per role — so dispatch **one `general-purpose`
+subagent per functional role** and let it return only the distilled candidate rows,
+keeping the search noise out of the main thread. Hand each subagent its role, the
+**spec requirements that apply to that role** (verbatim, with `[CRITICAL]` flags), the
+rubric above, the `parts.preferred`/connector/regulator lists, and
+`assembly.distributor_order`. Each subagent **caches every serious candidate's
+datasheet** to `{outputs}/{project_name}_datasheets/{MPN}.pdf` + `index.md` **and writes
+its `{MPN}.facts.yaml` fact card** (intrinsic facts: sourcing + `lib_id`/`footprint` +
+extracted pinout). The main thread collates the rows and presents them at the gate, and
+carries intrinsic fields forward **from the cards**, not by retyping. See recipe A in
+`references/subagents.md`.
+
+**What Claude does (per role):**
 1. For each functional role in the spec (regulators, ICs, sensors, connectors), identify **2-3 candidate parts**
 2. Check `parts.preferred` (and the `connectors` / `preferred_regulators` lists) first — any matching part gets automatic candidate status, but still verify it's currently PCBway-sourceable
 3. **For every candidate IC**, check KiCad library availability:
@@ -214,7 +272,7 @@ Because PCBway sources and assembles every part, **choosing parts PCBway can com
 8. List connectors (check the `connectors` list in preferences.yaml)
 
 **Four-gate check for every selected part:**
-- [ ] **Spec conformance** — satisfies every applicable Stage-1 requirement, with a **datasheet citation for each [CRITICAL] one**. A part that fails any [CRITICAL] requirement is **disqualified regardless of price, stock, or library support** — do not rationalize around it. And **every candidate the spec named must be evaluated here** (or an explicit, justified reason given for dropping it); never silently substitute a requirement away. *(This is the gate that the BQ24650 selection bypassed — it failed the spec's "[CRITICAL] SYS live regardless of battery" requirement, and the spec's power-path candidate was never put on the table.)*
+- [ ] **Spec conformance** — satisfies every applicable Stage-1 requirement, with a **datasheet citation for each [CRITICAL] one**. **Verify each `[CRITICAL]` requirement with an answer-blind subagent** (recipe B in `references/subagents.md`): hand it only the requirement verbatim + the candidate's cached datasheet path — never which part you favor — and have it try to *refute* satisfaction, citing the page. **Honor its verdict — you may not overturn a `fails`/`insufficient_evidence` with your own reasoning** (fix the inputs and re-run, reselect, or escalate to the user); record the verdict + citation into `{project}_07_traceability.yaml`. A part that fails any [CRITICAL] requirement is **disqualified regardless of price, stock, or library support** — do not rationalize around it. And **every candidate the spec named must be evaluated here** (or an explicit, justified reason given for dropping it); never silently substitute a requirement away. *(This is the gate that the BQ24650 selection bypassed — it failed the spec's "[CRITICAL] SYS live regardless of battery" requirement, and the spec's power-path candidate was never put on the table.)*
 - [ ] **Works** — electrically correct for the application (specs match requirements)
 - [ ] **PCBway-sourceable** — in stock at a distributor PCBway sources from (LCSC/DigiKey/Mouser) with a captured distributor PN, **and** an assembly-friendly package per the rubric
 - [ ] **KiCad ready** — has symbol and footprint in KiCad's built-in libraries (or user has sourced them)
@@ -309,6 +367,17 @@ At this stage the check answers **"did we *select* parts capable of every requir
 4. Build the **net plan** — every named net, its type (power/signal), source, and loads
 
 **This is the most important stage for correctness.** The implementation reference becomes the blueprint for schematic generation. Errors here propagate directly into the schematic.
+
+**Independent pinout re-derivation (for any IC not in the pinout DB).** Hallucinated
+pinouts are the top risk here, so verify each non-DB IC's pinout with an **answer-blind
+subagent** (recipe C in `references/subagents.md`): hand it only the MPN + the cached
+datasheet path — **not** the card's `pins:` block — and have it derive the pinout from
+the datasheet alone. **Diff** its result against the `{MPN}.facts.yaml` card; any
+disagreement on a pin number/name/type is a **stop** until resolved against the
+datasheet and the card is corrected. Only then set **`pinout_verified: true`** on the
+card — that flag is what lets its pinout flow into the Stage 6 layout `symbols:`
+number/name/type. DB-seeded parts are already verified; this guards exactly the parts
+where the risk is real and yields a card eligible for promotion into `pinout_db.json`.
 
 **What to discuss with the user:**
 - Do the pinout assignments look correct? (Especially for ICs the user has used before)
@@ -500,11 +569,14 @@ and placement + IC pin-side arrangement in the layout YAML. Nothing is retyped.
       `Conn_01x0N` connectors auto-register from their lib_id — **skip them in `symbols:`**.
       Only true ICs / named-pin parts need a `symbols:` entry.
 
-   b. **Author each IC's `symbols:` entry.** Each pin is `[number, name, type, side, index]`:
+   b. **Author each IC's `symbols:` entry.** Each pin is `[number, name, type, side, index]`.
+      The **number/name/type are intrinsic** — copy them from the IC's verified
+      `{MPN}.facts.yaml` card (`pinout_verified: true`); never retype or invent them. The
+      card was sourced from `check_kicad_library --lookup` / `lookup_pinout.py` / the
+      datasheet and confirmed by the Stage 4 re-derivation.
       - **numbers** must equal that component's `pins` in the netlist *exactly* — the engine
         enforces this, so cross-check before running;
-      - **name + type** come from `check_kicad_library --lookup` (library parts),
-        `lookup_pinout.py`, or the datasheet (Stage 4) — never invent them;
+      - **name + type** must match the card's `pins:`;
       - **side + index** are your semantic-grouping decision (see `references/layout_authoring.md`):
         analog/signal inputs and primary power-in on the **left**, digital/outputs on the
         **right**, main supply on **top**, grounds on the **bottom**; keep differential pairs
@@ -664,9 +736,17 @@ Then walk through the design review checklist (`templates/05_design_review_check
 
 Note: Many power/signal checks here overlap with Stage 5's DC analysis. The DC analyzer catches *value* errors quantitatively (wrong resistor → wrong voltage). This review catches *structural* and *semantic* errors the analyzer can't (wrong pin assignment, missing connection, polarity flip). Together they cover both classes.
 
-Work through the full structural checklist in **`references/design_review.md`** — five
-categories (Power Integrity, Signal Integrity, Connectivity, Component Correctness,
-Footprint & BOM). Record the results against `templates/05_design_review_checklist.md`.
+**Run the structural review as an answer-blind subagent** (recipe D in
+`references/subagents.md`) — it shouldn't inherit the main thread's belief that the
+design is fine. Hand it the approved Stage-5b netlist YAML, the generated
+`.kicad_sch`, the relevant cached datasheets, and the checklist in
+`references/design_review.md`; it walks all five categories (Power Integrity, Signal
+Integrity, Connectivity, Component Correctness, Footprint & BOM) and returns a findings
+list `[{category, severity, location, issue, suggested_fix}]`. The main thread triages,
+fixes real findings by editing the *data* and regenerating (per Stage 6), and records
+results against `templates/05_design_review_checklist.md`. This complements — does not
+replace — the deterministic validators in Parts A/A2/A3 and the `check_requirements`
+pass above, which still run directly on the main thread.
 
 **Output:** Completed `{project_name}_05_review.md` with checklist results.
 
@@ -828,7 +908,9 @@ Once Stage 7 passes, deliver to the user:
    - Things to verify in KiCad before layout
    - Any caveats or assumptions
 
-All intermediate documents (spec, candidates, implementation reference) remain in the outputs directory for traceability.
+All intermediate documents (spec, candidates, implementation reference) and the
+`{project_name}_datasheets/` cache (canonical datasheets + `index.md` citation ledger)
+remain in the outputs directory for traceability.
 
 **Always include this notice:**
 > This schematic was AI-generated. Verify all pin assignments against datasheets before PCB layout. Run KiCad's ERC for additional checks not covered by the automated validator.
