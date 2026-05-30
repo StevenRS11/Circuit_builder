@@ -1,0 +1,71 @@
+# Stage 6 — Layout document (TEMPLATE / schema reference)
+#
+# This is the ONLY per-project input that carries geometry. Combined with the
+# Stage 5b netlist YAML (connectivity) and the Stage 3 BOM (value + footprint),
+# the engine `generate_from_data.py` produces the .kicad_sch:
+#
+#   python generate_from_data.py <netlist.yaml> <bom_flat.md> <layout.yaml> \
+#       -o <project>.kicad_sch
+#
+# Single-source rule: do NOT put values or footprints here — they live in the
+# BOM and are joined on reference designator. Do NOT put connectivity here — it
+# lives in the netlist. This file owns only WHERE things are drawn and how an IC's
+# pins are arranged around its symbol body.
+#
+# The engine self-verifies before saving (structural validator + netlist verifier
+# + BOM cross-check) and refuses to emit a file with errors. A missing junction
+# (an unintended wire collision, e.g. a balance tap shorting to GND) is treated as
+# a blocking error — fix the placement (often a rotation) and regenerate.
+
+project: "my_board"
+title: "My Board - one-line description"
+rev: "1.0"
+
+# Nets wired via power symbols (e.g. rails). GND is ALWAYS a power symbol and is
+# handled implicitly — do not list it here. Every other net not listed becomes a
+# net label.
+power_nets: ["+3V3", "+5V", "VBUS"]
+
+# ── Placements: one line per component. lib_id + coordinates ONLY. ───────────
+# x/y are millimetres (snapped to the 1.27mm grid); origin top-left, +y is down.
+# rotation is 0 | 90 | 180 | 270. Components may be auto-nudged to avoid overlap.
+#
+# Passives and generic connectors are auto-registered from their lib_id and need
+# no entry in `symbols:` below:
+#   Device:R  Device:C  Device:C_Polarized  Device:L  Device:LED  Device:D
+#   Device:Q_NMOS_GSD  Device:Q_PMOS_GSD  Device:Q_NPN_BCE  Device:Q_PNP_BCE
+#   Device:Crystal  Device:Crystal_GND24
+#   Connector_Generic:Conn_01x0N   (N pins, generic numbered)
+# Any other lib_id (a real IC, or a connector/part with named pins) MUST have a
+# matching entry in `symbols:`.
+placements:
+  U1: { lib_id: "Regulator_Linear:AP2112K-3.3", x: 100, y: 100 }
+  C1: { lib_id: "Device:C", x: 80, y: 100 }
+  C2: { lib_id: "Device:C", x: 120, y: 100 }
+  J1: { lib_id: "Connector_Generic:Conn_01x02", x: 60, y: 100 }
+  # J2: { lib_id: "Connector_Generic:Conn_01x04", x: 200, y: 100, rotation: 270 }
+  #   ^ Rotating a multi-pin connector so pins face DOWN gives each pin its own
+  #     drop column — use this when a GND tie would otherwise cross a sibling stub.
+
+# ── Symbols: IC / custom symbol definitions (pin-side arrangement). ──────────
+# Only ICs and named-pin parts go here. Each pin is [number, name, type, side, index]:
+#   number : pin number/name as it appears in the netlist `pins:` array (must match exactly)
+#   name   : pin label shown on the symbol (from the datasheet / KiCad library)
+#   type   : power_in | power_out | input | output | bidirectional | passive |
+#            open_collector | tri_state | unspecified | no_connect
+#   side   : left | right | top | bottom
+#   index  : 0-based position along that side, top-to-bottom or left-to-right
+#
+# The engine cross-checks each IC's symbol pin-number set against the netlist's
+# `components[ref].pins` set and errors on any mismatch — this catches pin typos
+# before generation.
+symbols:
+  "Regulator_Linear:AP2112K-3.3":
+    ref_prefix: U
+    width: 12.7
+    pins:
+      - ["1", "VIN", "power_in",  "left",   0]
+      - ["3", "EN",  "input",     "left",   1]
+      - ["2", "GND", "power_in",  "bottom", 0]
+      - ["5", "VOUT","power_out", "right",  0]
+      - ["4", "NC",  "no_connect","right",  1]

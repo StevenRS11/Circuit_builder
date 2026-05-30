@@ -1,0 +1,175 @@
+# Stage 6 layout document for battery_3s.
+# Placement (geometry) + IC pin-side arrangement only. Connectivity comes from
+# the Stage 5b netlist YAML; value/footprint come from the Stage 3 BOM. The
+# engine (generate_from_data.py) joins all three on reference designator.
+project: "battery_3s"
+title: "battery_3s - 3S LiPo Charger + Power Module"
+rev: "1.0"
+
+# Nets wired via power symbols. GND is always a power symbol (handled implicitly).
+power_nets: ["VBUS_USB", "VSTEPPER", "+5V"]
+
+placements:
+  # Row 1: USB input + ideal diode (U4/Q4) + CH224K PD sink
+  J1: { lib_id: "Connector:USB_C_Receptacle_GCT_USB4125_6P", x: 60, y: 80 }
+  U4: { lib_id: "Power_Management:LTC4412xS6", x: 95, y: 115 }
+  Q4: { lib_id: "Device:Q_PMOS_GSD", x: 95, y: 140 }
+  C18: { lib_id: "Device:C", x: 70, y: 115 }
+  C19: { lib_id: "Device:C", x: 120, y: 140 }
+  U1: { lib_id: "Interface_USB:CH224K", x: 140, y: 80 }
+  R1: { lib_id: "Device:R", x: 115, y: 95 }
+  C1: { lib_id: "Device:C", x: 100, y: 60 }
+  C2: { lib_id: "Device:C", x: 110, y: 60 }
+  R15: { lib_id: "Device:R", x: 175, y: 60 }
+
+  # Row 2: BQ24650 charger + sync-buck power stage
+  U2: { lib_id: "Battery_Management:BQ24650", x: 260, y: 170 }
+  Q2: { lib_id: "Device:Q_NMOS_GSD", x: 310, y: 150 }
+  Q3: { lib_id: "Device:Q_NMOS_GSD", x: 310, y: 185 }
+  L1: { lib_id: "Device:L", x: 340, y: 170 }
+  R8: { lib_id: "Device:R", x: 360, y: 170 }
+  R23: { lib_id: "Device:R", x: 345, y: 200 }
+  R24: { lib_id: "Device:R", x: 375, y: 200 }
+  C16: { lib_id: "Device:C", x: 360, y: 215 }
+  C3: { lib_id: "Device:C", x: 225, y: 145 }
+  C4: { lib_id: "Device:C", x: 220, y: 175 }
+  C5: { lib_id: "Device:C", x: 325, y: 130 }
+  C6: { lib_id: "Device:C", x: 220, y: 165 }
+  R4: { lib_id: "Device:R", x: 220, y: 195 }
+  R5: { lib_id: "Device:R", x: 220, y: 215 }
+  R6: { lib_id: "Device:R", x: 220, y: 130 }
+  R7: { lib_id: "Device:R", x: 220, y: 155 }
+  R9: { lib_id: "Device:R", x: 210, y: 185 }
+  RT1: { lib_id: "Device:Thermistor_NTC", x: 200, y: 215 }
+  C17: { lib_id: "Device:C", x: 210, y: 230 }
+  C7: { lib_id: "Device:C", x: 395, y: 180 }
+  C8: { lib_id: "Device:C", x: 405, y: 180 }
+  C9: { lib_id: "Device:C", x: 415, y: 180 }
+  R13: { lib_id: "Device:R", x: 290, y: 130 }
+  R14: { lib_id: "Device:R", x: 300, y: 130 }
+
+  # Row 3: Battery interface + protection + master switch
+  J2: { lib_id: "Connector_Generic:Conn_01x02", x: 460, y: 60 }
+  F1: { lib_id: "Device:Polyfuse", x: 485, y: 75 }
+  Q1: { lib_id: "Device:Q_PMOS_GSD", x: 510, y: 80 }
+  R19: { lib_id: "Device:R", x: 510, y: 110 }
+  R20: { lib_id: "Device:R", x: 500, y: 100 }
+  # Master power switch: 2-pin connector to an external SPST switch, breaking
+  # VBAT -> VSTEPPER. Both outputs (J4 stepper + buck) are downstream, so one
+  # switch kills both; the charger + VFB stay on VBAT so charging works switched-off.
+  J7: { lib_id: "Connector_Generic:Conn_01x02", x: 555, y: 95 }
+
+  # Row 4: 5V buck (TPS54202)
+  U3: { lib_id: "Regulator_Switching:TPS54202DDC", x: 110, y: 300 }
+  L2: { lib_id: "Device:L", x: 155, y: 300 }
+  C10: { lib_id: "Device:C", x: 70, y: 310 }
+  C11: { lib_id: "Device:C", x: 80, y: 310 }
+  R12: { lib_id: "Device:R", x: 90, y: 280 }
+  C12: { lib_id: "Device:C", x: 135, y: 290 }
+  C13: { lib_id: "Device:C", x: 180, y: 310 }
+  C14: { lib_id: "Device:C", x: 190, y: 310 }
+  C15: { lib_id: "Device:C", x: 200, y: 310 }
+  R10: { lib_id: "Device:R", x: 170, y: 330 }
+  R11: { lib_id: "Device:R", x: 170, y: 350 }
+
+  # Row 5: output connectors + status LEDs
+  J4: { lib_id: "Connector_Generic:Conn_01x02", x: 330, y: 320 }
+  J5: { lib_id: "Connector_Generic:Conn_01x02", x: 270, y: 320 }
+  J6: { lib_id: "Connector_Generic:Conn_01x03", x: 390, y: 320 }
+  R16: { lib_id: "Device:R", x: 300, y: 360 }
+  D1: { lib_id: "Device:LED", x: 300, y: 380 }
+  R17: { lib_id: "Device:R", x: 420, y: 360 }
+  D2: { lib_id: "Device:LED", x: 420, y: 380 }
+
+# IC / custom symbols (pin sides). Passives and generic Conn_01x0N connectors are
+# auto-registered from lib_id and need no entry here. Pin = [num, name, type, side, index].
+symbols:
+  # USB-input ideal-diode controller (P-FET PowerPath). Pins from KiCad lib;
+  # verify against the LTC4412 datasheet before layout.
+  "Power_Management:LTC4412xS6":
+    ref_prefix: U
+    width: 12.7
+    pins:
+      - ["6", "SENSE", "input",          "left",   0]
+      - ["3", "CTL",   "input",          "left",   1]
+      - ["1", "VIN",   "power_in",       "top",    0]
+      - ["2", "GND",   "power_in",       "bottom", 0]
+      - ["5", "GATE",  "output",         "right",  0]
+      - ["4", "STAT",  "open_collector", "right",  1]
+
+  "Device:Polyfuse":
+    ref_prefix: F
+    width: 7.62
+    pins:
+      - ["1", "1", "passive", "left", 0]
+      - ["2", "2", "passive", "right", 0]
+
+  "Device:Thermistor_NTC":
+    ref_prefix: RT
+    width: 7.62
+    pins:
+      - ["1", "1", "passive", "left", 0]
+      - ["2", "2", "passive", "right", 0]
+
+  "Interface_USB:CH224K":
+    ref_prefix: U
+    width: 20.32
+    pins:
+      - ["1",  "VDD",  "power_in",       "top",    0]
+      - ["11", "GND",  "power_in",       "bottom", 0]
+      - ["9",  "CFG1", "passive",        "left",   0]
+      - ["2",  "CFG2", "passive",        "left",   1]
+      - ["3",  "CFG3", "passive",        "left",   2]
+      - ["8",  "VBUS", "passive",        "top",    1]
+      - ["7",  "CC1",  "bidirectional",  "right",  0]
+      - ["6",  "CC2",  "bidirectional",  "right",  1]
+      - ["4",  "DP",   "bidirectional",  "right",  2]
+      - ["5",  "DM",   "bidirectional",  "right",  3]
+      - ["10", "PG",   "open_collector", "right",  4]
+
+  "Battery_Management:BQ24650":
+    ref_prefix: U
+    width: 25.4
+    pins:
+      - ["1",  "VCC",     "power_in",       "top",    0]
+      - ["11", "GND",     "power_in",       "bottom", 0]
+      - ["17", "EP_GND",  "passive",        "bottom", 1]
+      - ["2",  "MPPSET",  "input",          "left",   0]
+      - ["8",  "VFB",     "input",          "left",   1]
+      - ["4",  "TS",      "input",          "left",   2]
+      - ["7",  "TERM_EN", "input",          "left",   3]
+      - ["6",  "VREF",    "output",         "left",   4]
+      - ["12", "REGN",    "output",         "left",   5]
+      - ["16", "BTST",    "output",         "right",  0]
+      - ["15", "HIDRV",   "output",         "right",  1]
+      - ["14", "PH",      "input",          "right",  2]
+      - ["13", "LODRV",   "output",         "right",  3]
+      - ["10", "SRP",     "input",          "right",  4]
+      - ["9",  "SRN",     "input",          "right",  5]
+      - ["3",  "STAT1",   "open_collector", "right",  6]
+      - ["5",  "STAT2",   "open_collector", "right",  7]
+
+  "Regulator_Switching:TPS54202DDC":
+    ref_prefix: U
+    width: 17.78
+    pins:
+      - ["3", "VIN",  "power_in",  "top",    0]
+      - ["1", "GND",  "power_in",  "bottom", 0]
+      - ["5", "EN",   "input",     "left",   0]
+      - ["4", "FB",   "input",     "left",   1]
+      - ["2", "SW",   "power_out", "right",  0]
+      - ["6", "BOOT", "passive",   "right",  1]
+
+  # GCT USB4125 6P power-only USB-C: VBUS (A9/B9), CC1/CC2 (A5/B5), GND (A12/B12), shield (S1).
+  # No D+/D- or duplicate VBUS/GND pads exist on the 6-position part.
+  "Connector:USB_C_Receptacle_GCT_USB4125_6P":
+    ref_prefix: J
+    width: 20.32
+    pins:
+      - ["A9",  "VBUS",   "passive",       "top",    0]
+      - ["B9",  "VBUS",   "passive",       "top",    1]
+      - ["A5",  "CC1",    "bidirectional", "right",  0]
+      - ["B5",  "CC2",    "bidirectional", "right",  1]
+      - ["A12", "GND",    "passive",       "bottom", 0]
+      - ["B12", "GND",    "passive",       "bottom", 1]
+      - ["S1",  "SHIELD", "passive",       "bottom", 2]

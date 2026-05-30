@@ -1,0 +1,307 @@
+# ─────────────────────────────────────────────────────────────────────
+# KiCad Schematic Generator — User Preferences
+# ─────────────────────────────────────────────────────────────────────
+# Boards are ordered as ASSEMBLED boards from PCBway (turnkey): PCBway
+# sources every part from authorized distributors (LCSC, DigiKey, Mouser,
+# Arrow, ...) and populates the board. We do NOT populate in-house, so
+# there is no stock to track — the job of part selection is to pick parts
+# PCBway can actually source and assemble cleanly (see the `assembly`
+# section and scripts/check_pcbway.py for the compatibility rubric).
+#
+# The `parts` section is still useful: `preferred` holds your go-to part
+# per role (a specific connector, a default LDO) so the skill reaches for
+# them first, and `on_hand` lists anything you physically keep (e.g. to
+# consign to PCBway or hand-rework). Edit this file to match your
+# preferences; the skill reads it before generating any schematic.
+# ─────────────────────────────────────────────────────────────────────
+
+
+# ═══════════════════════════════════════════════════════════════════
+# DEFAULTS — applied unless overridden per-design
+# ═══════════════════════════════════════════════════════════════════
+
+defaults:
+  # Passive component package size
+  # Options: 0402, 0603, 0805, 1206
+  passive_package: "0805"
+
+  # Default footprints by component type (KiCad footprint library IDs)
+  footprints:
+    resistor:    "Resistor_SMD:R_0805_2012Metric"
+    capacitor:   "Capacitor_SMD:C_0805_2012Metric"
+    inductor:    "Inductor_SMD:L_0805_2012Metric"
+    led:         "LED_SMD:LED_0805_2012Metric"
+    diode:       "Diode_SMD:D_SOD-123"
+
+  # Preferred IC packages (ordered by preference, first match wins)
+  ic_package_preference:
+    - "SOT-23-5"
+    - "SOT-23-6"
+    - "SOT-23"
+    - "SOIC-8"
+    - "TSSOP"
+    - "QFN"
+    - "DFN"
+
+  # Default capacitor values to use when the datasheet says "≥X"
+  # (Pick from values you stock rather than exotic ones)
+  decoupling_cap: "100nF"
+  bulk_cap: "10uF"
+  ldo_input_cap: "1uF"
+  ldo_output_cap: "1uF"
+
+  # Pull-up/pull-down defaults
+  i2c_pullup: "4.7k"
+  generic_pullup: "10k"
+  generic_pulldown: "10k"
+  led_resistor: "1k"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# POWER RAILS — what's available in your system
+# ═══════════════════════════════════════════════════════════════════
+
+power_rails:
+  # Rails you commonly have available
+  # The skill will try to use an existing rail before adding a new regulator
+  available:
+    - voltage: 3.3
+      name: "+3V3"
+      max_current_ma: 500
+      source: "LDO or system"
+
+    - voltage: 5.0
+      name: "+5V"
+      max_current_ma: 1000
+      source: "USB or regulator"
+
+    - voltage: 12.0
+      name: "+12V"
+      max_current_ma: 2000
+      source: "External supply"
+
+    - voltage: 3.7
+      name: "VBAT"
+      max_current_ma: 1000
+      source: "LiPo battery"
+
+  # Preferred regulators — when the skill needs to add a regulator,
+  # it'll pick from this list first
+  preferred_regulators:
+    - part: "AP2112K-3.3"
+      output_v: 3.3
+      max_current_ma: 600
+      package: "SOT-23-5"
+      footprint: "Package_TO_SOT_SMD:SOT-23-5"
+      notes: "Go-to 3.3V LDO, low dropout"
+
+    - part: "AP2112K-5.0"
+      output_v: 5.0
+      max_current_ma: 600
+      package: "SOT-23-5"
+      footprint: "Package_TO_SOT_SMD:SOT-23-5"
+      notes: "5V variant"
+
+    # Add more as you stock them:
+    # - part: "AMS1117-3.3"
+    #   output_v: 3.3
+    #   max_current_ma: 1000
+    #   package: "SOT-223"
+    #   footprint: "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CONNECTORS — preferred connector families & specific parts
+# ═══════════════════════════════════════════════════════════════════
+
+connectors:
+  # Preferred families (ordered by preference)
+  preferred_families:
+    - "JST-SH"    # 1.0mm pitch, StemmaQT/Qwiic compatible
+    - "USB-C"
+    - "JST-PH"    # 2.0mm pitch
+
+  # Specific connector parts you stock
+  parts:
+    # ── JST-SH (1.0mm) ──
+    - type: "JST-SH"
+      pins: 4
+      part_number: "SM04B-SRSS-TB"
+      footprint: "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal"
+      use_for: "I2C / Qwiic / StemmaQT"
+      pinout: "GND, VCC, SDA, SCL"
+
+    - type: "JST-SH"
+      pins: 6
+      part_number: "SM06B-SRSS-TB"
+      footprint: "Connector_JST:JST_SH_SM06B-SRSS-TB_1x06-1MP_P1.00mm_Horizontal"
+      use_for: "SPI or expanded I2C"
+
+    # ── JST-PH (2.0mm) ──
+    - type: "JST-PH"
+      pins: 2
+      part_number: "S2B-PH-K-S"
+      footprint: "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal"
+      use_for: "Battery, power input"
+      pinout: "VCC, GND"
+
+    - type: "JST-PH"
+      pins: 3
+      part_number: "S3B-PH-K-S"
+      footprint: "Connector_JST:JST_PH_S3B-PH-K_1x03_P2.00mm_Horizontal"
+      use_for: "Servo, analog sensor"
+
+    - type: "JST-PH"
+      pins: 4
+      part_number: "S4B-PH-K-S"
+      footprint: "Connector_JST:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal"
+      use_for: "I2C (alternate), motor"
+
+    # ── USB-C ──
+    - type: "USB-C"
+      pins: 16
+      part_number: "USB4125-GF-A"
+      footprint: "Connector_USB:USB_C_Receptacle_GCT_USB4125"
+      use_for: "USB 2.0 power + data"
+      notes: "Mid-mount, good for thin boards"
+
+    # ── Pin headers (for dev/debug) ──
+    # Uncomment and add specific headers as needed:
+    # - type: "pin_header"
+    #   pins: 4
+    #   pitch_mm: 2.54
+    #   footprint: "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+    #   use_for: "Debug, prototyping"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PARTS — preferred go-to parts + anything kept on hand
+# ═══════════════════════════════════════════════════════════════════
+# Two roles, both in a PCBway turnkey context (no stock tracking):
+#
+#   preferred — your go-to part per role. The skill reaches for these
+#               first in Stage 2 (and still confirms each is PCBway-
+#               sourceable). Add the parts you've standardized on.
+#
+#   on_hand   — parts you physically keep, e.g. to consign to a PCBway
+#               order or for hand-rework. Optional. `qty` is informational
+#               only; PCBway sources fresh unless you explicitly consign.
+#
+# (Preferred connectors live in the `connectors` section above, and the
+#  preferred regulator list in `power_rails.preferred_regulators`. Add
+#  other role-specific go-to parts here.)
+
+parts:
+  # ── Preferred go-to parts (ranked first in Stage 2) ──
+  preferred:
+    # Standard passive values to favor (so the skill picks common,
+    # easy-to-source values rather than exotic ones PCBway may not stock).
+    resistor_values:
+      - "100"
+      - "220"
+      - "330"
+      - "470"
+      - "1k"
+      - "2.2k"
+      - "4.7k"
+      - "10k"
+      - "22k"
+      - "47k"
+      - "100k"
+
+    capacitor_values:
+      - "100pF"
+      - "1nF"
+      - "10nF"
+      - "100nF"
+      - "1uF"
+      - "10uF"
+      - "100uF"
+
+    leds:
+      - color: "green"
+        package: "0805"
+        footprint: "LED_SMD:LED_0805_2012Metric"
+        vf_typ: 2.2
+      - color: "red"
+        package: "0805"
+        footprint: "LED_SMD:LED_0805_2012Metric"
+        vf_typ: 2.0
+      # - color: "blue"
+      #   package: "0805"
+      #   footprint: "LED_SMD:LED_0805_2012Metric"
+      #   vf_typ: 3.0
+
+    # Add preferred ICs/sensors/MCUs as you standardize on them.
+    # Each entry should be PCBway-sourceable (in stock at LCSC/DigiKey/Mouser).
+    # - part: "AP2112K-3.3"
+    #   role: "3.3V LDO"
+    #   package: "SOT-23-5"
+    #   footprint: "Package_TO_SOT_SMD:SOT-23-5"
+    #   supplier: "LCSC"
+    #   supplier_pn: "C51118"
+
+  # ── Parts kept on hand (consign / rework) ──
+  # Optional. Leave empty if you let PCBway source everything.
+  on_hand:
+    []
+    # - part: "AP2112K-3.3"
+    #   package: "SOT-23-5"
+    #   footprint: "Package_TO_SOT_SMD:SOT-23-5"
+    #   qty: 10                 # informational only
+    #   supplier: "LCSC"
+    #   supplier_pn: "C51118"
+    #   note: "consign to PCBway order if cheaper than their sourcing"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ASSEMBLY — how boards get built (PCBway turnkey)
+# ═══════════════════════════════════════════════════════════════════
+
+assembly:
+  # Who fabricates + assembles the board.
+  assembler: "PCBway"
+
+  # turnkey  — PCBway sources ALL parts and assembles (default)
+  # consigned — you ship parts to PCBway, they assemble
+  # mixed    — turnkey for most, consign the few in `parts.on_hand`
+  service: "turnkey"
+
+  # PCBway sources from authorized distributors. The skill confirms each
+  # BOM line is in stock at one of these (in this order) via web search in
+  # Stage 3 — there is no PCBway parts API to query.
+  distributor_order:
+    - "LCSC"        # cheapest, widest catalog PCBway draws from
+    - "DigiKey"     # reliable fallback
+    - "Mouser"      # good selection
+
+  # Part-selection rubric thresholds (used by check_pcbway.py and Stage 2).
+  rubric:
+    smallest_passive: "0402"     # avoid 0201/01005 unless space-critical
+    min_bga_pitch_mm: 0.4        # finer pitch raises assembly cost/risk
+    prefer_smt: true             # THT adds per-pin hand/wave-solder cost
+    avoid_single_source: true    # prefer parts with a second source
+    min_stock_qty: 100           # treat lower distributor stock as a risk
+
+# Legacy alias — some prose still says "suppliers"; both map to the same idea.
+# pcb_fab kept for DRC defaults.
+pcb_fab: "PCBway"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# DESIGN RULES — schematic & layout preferences
+# ═══════════════════════════════════════════════════════════════════
+
+design_rules:
+  # Schematic style
+  schematic:
+    # Use net labels vs direct wires for power distribution
+    power_style: "symbols"          # "symbols" (VCC/GND symbols) or "labels"
+    label_style: "net_labels"       # "net_labels" or "global_labels"
+    include_decoupling: true        # Auto-add decoupling caps to every IC
+    include_power_indicator: true   # Add a power LED to boards with regulators
+
+  # Notes to include on generated schematics
+  notes:
+    - "AI-generated schematic — verify all pin assignments against datasheets"
+    - "Check capacitor voltage ratings for your application"

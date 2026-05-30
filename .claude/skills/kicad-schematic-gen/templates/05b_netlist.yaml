@@ -1,0 +1,152 @@
+# {project_name}_05b_netlist.yaml
+# Pin-level netlist — declares every connection before schematic generation.
+# This is the source of truth for connectivity. Stage 6 executes it as geometry.
+# Stage 7 verifies the schematic matches this document exactly.
+#
+# Rules:
+#   - Every pin on every component MUST appear in exactly one net OR in no_connects.
+#   - Pin numbers are strings (e.g., "1", "2", "A1").
+#   - Power symbols are listed under power_symbols in the relevant net, not as pins.
+#   - Net names must match labels/power symbols used in the schematic.
+#
+# Net classification (drives the analog-noise checks — see references/analog_layout.md):
+#   Each net MAY declare a `class` to flag how sensitive it is. This seeds both the
+#   Stage 5 front-end completeness check (analyze_analog.py) and the Stage 8 layout
+#   check (analyze_pcb_si.py). If omitted, a net is treated as generic `signal`.
+#
+#   class values:
+#     power               supply rail (also implied by type: power)
+#     digital             generic digital I/O (default for signals; no special handling)
+#     analog              single-ended sensitive analog (ADC input, sensor output)
+#     analog_differential one leg of a differential analog pair (load cell, bridge, etc.)
+#     analog_supply       analog supply / excitation rail (AVDD, bridge excitation)
+#     reference           voltage-reference / bandgap node (REF, VBG)
+#     high_impedance      high-Z node (>~1 MΩ): electrometer, pH, photodiode TIA — guarding matters
+#     rf                  RF / antenna net (aggressor + keep-out)
+#     switching           switch-node / high-di/dt net (regulator SW, gate drive) — aggressor
+#
+#   Extra keys for differential pairs (class: analog_differential):
+#     pair:      pair name shared by both legs (e.g., "LC_A")
+#     polarity:  "P" or "N"
+#   Extra keys for analog/bridge nets:
+#     source_z:  "low" | "high"  — source impedance of the driving node. Governs whether
+#                guarding is worth anything (low-Z bridge → guards are low priority).
+#     ratiometric: true          — on a reference/supply net, marks it as the bridge
+#                excitation-derived reference (see analog_layout.md §3.3).
+
+project: "{project_name}"
+source: "{project_name}_04_implementation.md"
+
+# Component manifest — every component and its pins.
+# Used to verify completeness: every pin must be accounted for.
+components:
+  U1:
+    part: "AP2112K-3.3"
+    pins: ["1", "2", "3", "4", "5"]
+  C1:
+    part: "100nF"
+    pins: ["1", "2"]
+  C2:
+    part: "10uF"
+    pins: ["1", "2"]
+  R1:
+    part: "1k"
+    pins: ["1", "2"]
+  D1:
+    part: "Green LED"
+    pins: ["1", "2"]
+  J1:
+    part: "Conn_01x04"
+    pins: ["1", "2", "3", "4"]
+
+# Named nets with all member pins.
+nets:
+  "+5V":
+    type: power            # power | signal
+    pins:
+      - { ref: U1, pin: "1", function: "VIN" }
+      - { ref: C1, pin: "1", function: "input decoupling" }
+      - { ref: J1, pin: "1", function: "power input" }
+    power_symbols: ["+5V"]
+
+  "+3V3":
+    type: power
+    pins:
+      - { ref: U1, pin: "5", function: "VOUT" }
+      - { ref: C2, pin: "1", function: "output bulk cap" }
+      - { ref: R1, pin: "1", function: "LED resistor supply" }
+    power_symbols: ["+3V3"]
+
+  GND:
+    type: power
+    pins:
+      - { ref: U1, pin: "2", function: "GND" }
+      - { ref: C1, pin: "2", function: "input decoupling" }
+      - { ref: C2, pin: "2", function: "output bulk cap" }
+      - { ref: D1, pin: "1", function: "LED cathode" }
+      - { ref: J1, pin: "2", function: "power ground" }
+    power_symbols: ["GND"]
+
+  LED_ANODE:
+    type: signal
+    pins:
+      - { ref: R1, pin: "2", function: "LED current limit" }
+      - { ref: D1, pin: "2", function: "LED anode" }
+    labels: ["LED_ANODE"]    # optional: net labels used in schematic
+
+  SDA:
+    type: signal
+    pins:
+      - { ref: J1, pin: "3", function: "I2C data" }
+    labels: ["SDA"]
+
+  SCL:
+    type: signal
+    pins:
+      - { ref: J1, pin: "4", function: "I2C clock" }
+    labels: ["SCL"]
+
+# Pins explicitly marked as not connected.
+no_connects:
+  - { ref: U1, pin: "3", reason: "EN — tied high internally per datasheet" }
+  - { ref: U1, pin: "4", reason: "NC pin per datasheet" }
+
+# ───────────────────────────────────────────────────────────────────────────
+# ANALOG FRONT-END EXAMPLE (illustrates net classes; not part of the LDO demo)
+# A differential load-cell input into a precision ADC. Note the class tags that
+# the analog-noise checks key off. See references/analog_layout.md.
+#
+#   LC_A_SIGP:
+#     type: signal
+#     class: analog_differential
+#     pair: LC_A
+#     polarity: P
+#     source_z: low                 # 350R/1k bridge → guarding is low priority
+#     pins:
+#       - { ref: U2, pin: "3", function: "ADC AIN+ (channel A)" }
+#       - { ref: CdiffA, pin: "1", function: "differential filter cap" }
+#       - { ref: CcmAP, pin: "1", function: "common-mode filter cap" }
+#       - { ref: RsAP, pin: "2", function: "series input R" }
+#     labels: ["LC_A_SIGP"]
+#
+#   LC_A_SIGN:
+#     type: signal
+#     class: analog_differential
+#     pair: LC_A
+#     polarity: N
+#     source_z: low
+#     pins:
+#       - { ref: U2, pin: "2", function: "ADC AIN- (channel A)" }
+#       - { ref: CdiffA, pin: "2", function: "differential filter cap" }
+#       - { ref: CcmAN, pin: "1", function: "common-mode filter cap" }
+#       - { ref: RsAN, pin: "2", function: "series input R" }
+#     labels: ["LC_A_SIGN"]
+#
+#   AVDD:                            # analog supply == bridge excitation == ADC reference
+#     type: power
+#     class: analog_supply
+#     ratiometric: true
+#     pins:
+#       - { ref: U2, pin: "1", function: "AVDD" }
+#       - { ref: U2, pin: "16", function: "VREF / excitation" }
+#     power_symbols: ["AVDD"]

@@ -1,0 +1,35 @@
+# Stage 7 requirements traceability — {PROJECT_NAME}
+#
+# Claude-authored at Stage 7: map each Stage-1 Requirements-Checklist item (R1, R2, …)
+# to the part(s)/topology that satisfy it, with one line of cited evidence. This is the
+# *backward check against the verified spec* — it is judgment (which parts satisfy what),
+# so Claude writes it; check_requirements.py then verifies it structurally:
+#
+#   python check_requirements.py {project}_01_specification.md \
+#       {project}_07_traceability.yaml {project}_03_bom_flat.md
+#
+# The checker is deterministic and catches:
+#   - untraced_requirement (error)  — a requirement with no part mapped (a dropped block)
+#   - phantom_ref (error)           — a cited ref that isn't in the BOM (hallucination)
+#   - critical_no_evidence (error)  — a [CRITICAL] requirement with no cited evidence
+#   - stale_requirement (warning)   — a matrix entry not in the spec
+#   - orphan_part (warning)         — an IC/transistor/connector cited by no requirement
+# It does NOT judge whether the cited evidence is *true* — write honest, datasheet-backed
+# evidence; a [CRITICAL] claim with weak evidence is where a human reviewer should look.
+#
+# satisfied_by: list of component refs from the BOM. For a requirement met off-board or by
+# deliberate omission (e.g. protection handled by an external pack BMS), use the reserved
+# token EXTERNAL (still requires evidence). Leave satisfied_by EMPTY only to flag a
+# requirement the design genuinely does NOT yet satisfy.
+
+requirements:
+  R1:
+    satisfied_by: [U1, J1]
+    evidence: "{how these parts satisfy R1}"
+  R2:
+    satisfied_by: [U2]            # [CRITICAL] — evidence must be datasheet-cited
+    evidence: "{datasheet-backed justification for the critical requirement}"
+  # R3:
+  #   satisfied_by: [EXTERNAL]    # met off-board (e.g. by the pack BMS)
+  #   evidence: "..."
+  # …one entry per R# in the spec's Requirements Checklist.

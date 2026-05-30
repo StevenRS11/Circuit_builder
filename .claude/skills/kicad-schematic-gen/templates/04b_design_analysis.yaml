@@ -1,0 +1,146 @@
+# ─────────────────────────────────────────────────────────────────
+# DC Analysis Design File — {PROJECT_NAME}
+# ─────────────────────────────────────────────────────────────────
+# This file is generated from the Implementation Reference (Stage 4)
+# and fed into analyze_dc.py to catch electrical errors before
+# schematic generation.
+#
+# Claude populates this from the implementation reference.
+# The user does NOT need to write this by hand.
+# ─────────────────────────────────────────────────────────────────
+
+project_name: "{PROJECT_NAME}"
+
+
+# ═══════════════════════════════════════════════════════════════
+# Power Rails — current budget per rail
+# ═══════════════════════════════════════════════════════════════
+# Sum all loads on each rail and compare against source capacity.
+
+rails:
+  - name: "+3V3"
+    voltage: 3.3
+    source_ma: 600          # from regulator max rating
+    loads:
+      - name: "U2 (sensor IC)"
+        current_ma: 5
+      - name: "I2C pull-ups (2x 4.7k)"
+        current_ma: 1.4     # 3.3V / 4.7k * 2
+      - name: "Power LED"
+        current_ma: 1
+      # - name: "{load}"
+      #   current_ma: 0
+
+
+# ═══════════════════════════════════════════════════════════════
+# LDO Regulators
+# ═══════════════════════════════════════════════════════════════
+
+ldo_regulators:
+  - name: "U1 — AP2112K-3.3"
+    part: "AP2112K-3.3"
+    vin: 5.0
+    vout: 3.3
+    dropout_v: 0.25
+    max_current_ma: 600
+    load_current_ma: 7.4    # sum from rail budget above
+    cin_uf: 1
+    cout_uf: 1
+    cin_min_uf: 0.7         # from datasheet
+    cout_min_uf: 0.7        # from datasheet
+    package: "SOT-23-5"
+    enable_pin: "tied_high"  # tied to VIN
+
+
+# ═══════════════════════════════════════════════════════════════
+# Voltage Dividers
+# ═══════════════════════════════════════════════════════════════
+
+voltage_dividers: []
+  # - name: "5V-to-3V3 level sense"
+  #   vin: 5.0
+  #   r_top: "10k"
+  #   r_bot: "6.8k"
+  #   target_vout: 2.02
+  #   tolerance_pct: 5
+  #   load_current_ua: 0
+
+
+# ═══════════════════════════════════════════════════════════════
+# Feedback Dividers (adjustable regulators)
+# ═══════════════════════════════════════════════════════════════
+
+feedback_dividers: []
+  # - name: "U1 feedback — TPS563200"
+  #   vref: 0.6
+  #   r_top: "47k"
+  #   r_bot: "10k"
+  #   target_vout: 3.42
+  #   tolerance_pct: 2
+  #   ifb_ua: 0.05
+
+
+# ═══════════════════════════════════════════════════════════════
+# LED Circuits
+# ═══════════════════════════════════════════════════════════════
+
+led_circuits:
+  - name: "D1 — Power LED (green)"
+    vsource: 3.3
+    vf: 2.2
+    resistor: "1k"
+    target_current_ma: 1
+    max_current_ma: 20
+
+
+# ═══════════════════════════════════════════════════════════════
+# Pull-up / Pull-down Networks
+# ═══════════════════════════════════════════════════════════════
+
+pullup_networks:
+  - name: "R1 — SDA pull-up"
+    vsource: 3.3
+    resistor: "4.7k"
+    bus_type: "i2c"
+    bus_speed: "fast"
+    bus_capacitance_pf: 50
+
+  - name: "R2 — SCL pull-up"
+    vsource: 3.3
+    resistor: "4.7k"
+    bus_type: "i2c"
+    bus_speed: "fast"
+    bus_capacitance_pf: 50
+
+
+# ═══════════════════════════════════════════════════════════════
+# Capacitor Sizing Checks
+# ═══════════════════════════════════════════════════════════════
+
+cap_checks:
+  - name: "C1 — LDO input"
+    reference: "C1"
+    value_uf: 1.0
+    min_uf: 0.7
+    voltage_rating: 16
+    operating_voltage: 5.0
+    type: "MLCC"
+
+  - name: "C2 — LDO output"
+    reference: "C2"
+    value_uf: 1.0
+    min_uf: 0.7
+    voltage_rating: 10
+    operating_voltage: 3.3
+    type: "MLCC"
+
+
+# ═══════════════════════════════════════════════════════════════
+# Custom / Unanalyzable Subcircuits
+# ═══════════════════════════════════════════════════════════════
+# For subcircuits the analyzer can't pattern-match.
+# These are flagged as "manual review required" in the report.
+
+custom_checks: []
+  # - name: "EMI filter on USB data lines"
+  #   notes: "Using CM choke + TVS array per USB spec — verify values against IC datasheet"

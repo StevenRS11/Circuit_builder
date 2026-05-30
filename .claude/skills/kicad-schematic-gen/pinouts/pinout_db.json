@@ -1,0 +1,230 @@
+{
+  "AP2112K-3.3": {
+    "package": "SOT-23-5",
+    "manufacturer": "Diodes Inc.",
+    "pins": {
+      "1": {"name": "VIN", "type": "power_in"},
+      "2": {"name": "GND", "type": "power_in"},
+      "3": {"name": "EN", "type": "input"},
+      "4": {"name": "NC", "type": "no_connect"},
+      "5": {"name": "VOUT", "type": "power_out"}
+    },
+    "datasheet_url": "https://www.diodes.com/assets/Datasheets/AP2112.pdf",
+    "verified": "2026-03-16",
+    "notes": "EN has internal pull-up; can be left floating or tied to VIN. NC pin must not be connected."
+  },
+
+  "AP2112K-5.0": {
+    "package": "SOT-23-5",
+    "manufacturer": "Diodes Inc.",
+    "pins": {
+      "1": {"name": "VIN", "type": "power_in"},
+      "2": {"name": "GND", "type": "power_in"},
+      "3": {"name": "EN", "type": "input"},
+      "4": {"name": "NC", "type": "no_connect"},
+      "5": {"name": "VOUT", "type": "power_out"}
+    },
+    "datasheet_url": "https://www.diodes.com/assets/Datasheets/AP2112.pdf",
+    "verified": "2026-03-16",
+    "notes": "5V fixed output variant. Same pinout as AP2112K-3.3."
+  },
+
+  "AMS1117-3.3": {
+    "package": "SOT-223",
+    "manufacturer": "Advanced Monolithic Systems",
+    "pins": {
+      "1": {"name": "GND/ADJ", "type": "power_in"},
+      "2": {"name": "VOUT", "type": "power_out"},
+      "3": {"name": "VIN", "type": "power_in"},
+      "4": {"name": "VOUT", "type": "power_out"}
+    },
+    "datasheet_url": "http://www.advanced-monolithic.com/pdf/ds1117.pdf",
+    "verified": "2026-03-16",
+    "notes": "Pin 4 is the tab, connected to VOUT. Requires 22uF tantalum or 100uF electrolytic on output for stability."
+  },
+
+  "AMS1117-5.0": {
+    "package": "SOT-223",
+    "manufacturer": "Advanced Monolithic Systems",
+    "pins": {
+      "1": {"name": "GND/ADJ", "type": "power_in"},
+      "2": {"name": "VOUT", "type": "power_out"},
+      "3": {"name": "VIN", "type": "power_in"},
+      "4": {"name": "VOUT", "type": "power_out"}
+    },
+    "datasheet_url": "http://www.advanced-monolithic.com/pdf/ds1117.pdf",
+    "verified": "2026-03-16",
+    "notes": "5V fixed output. Same pinout and stability requirements as AMS1117-3.3."
+  },
+
+  "TPS563200": {
+    "package": "SOT-23-6",
+    "manufacturer": "Texas Instruments",
+    "pins": {
+      "1": {"name": "BOOT", "type": "passive"},
+      "2": {"name": "VIN", "type": "power_in"},
+      "3": {"name": "EN", "type": "input"},
+      "4": {"name": "FB", "type": "input"},
+      "5": {"name": "GND", "type": "power_in"},
+      "6": {"name": "SW", "type": "power_out"}
+    },
+    "datasheet_url": "https://www.ti.com/lit/ds/symlink/tps563200.pdf",
+    "verified": "2026-03-16",
+    "notes": "3A synchronous buck converter. 4.3-17V input. Internal compensation. BOOT cap 100nF from BOOT to SW."
+  },
+
+  "CH340G": {
+    "package": "SOIC-16",
+    "manufacturer": "WCH",
+    "pins": {
+      "1": {"name": "GND", "type": "power_in"},
+      "2": {"name": "TXD", "type": "output"},
+      "3": {"name": "RXD", "type": "input"},
+      "4": {"name": "V3", "type": "power_out"},
+      "5": {"name": "UD+", "type": "bidirectional"},
+      "6": {"name": "UD-", "type": "bidirectional"},
+      "7": {"name": "XI", "type": "input"},
+      "8": {"name": "XO", "type": "output"},
+      "9": {"name": "CTS#", "type": "input"},
+      "10": {"name": "DSR#", "type": "input"},
+      "11": {"name": "RI#", "type": "input"},
+      "12": {"name": "DCD#", "type": "input"},
+      "13": {"name": "DTR#", "type": "output"},
+      "14": {"name": "RTS#", "type": "output"},
+      "15": {"name": "R232", "type": "input"},
+      "16": {"name": "VCC", "type": "power_in"}
+    },
+    "datasheet_url": "https://www.wch-ic.com/downloads/CH340DS1_PDF.html",
+    "verified": "2026-03-16",
+    "notes": "USB to UART bridge. Requires 12MHz crystal on XI/XO. V3 pin needs 100nF decoupling (also 3.3V output for crystal)."
+  },
+
+  "BME280": {
+    "package": "LGA-8",
+    "manufacturer": "Bosch Sensortec",
+    "pins": {
+      "1": {"name": "GND", "type": "power_in"},
+      "2": {"name": "CSB", "type": "input"},
+      "3": {"name": "SDI", "type": "bidirectional"},
+      "4": {"name": "SCK", "type": "input"},
+      "5": {"name": "SDO", "type": "output"},
+      "6": {"name": "VDDIO", "type": "power_in"},
+      "7": {"name": "GND", "type": "power_in"},
+      "8": {"name": "VDD", "type": "power_in"}
+    },
+    "datasheet_url": "https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf",
+    "verified": "2026-03-16",
+    "notes": "Temperature/humidity/pressure sensor. I2C: SDO=addr select (GND=0x76, VDDIO=0x77), CSB=high. SPI: CSB=CS, SDO=MISO. 100nF on VDD and VDDIO."
+  },
+
+  "BMP390": {
+    "package": "LGA-10",
+    "manufacturer": "Bosch Sensortec",
+    "pins": {
+      "1": {"name": "VDD", "type": "power_in"},
+      "2": {"name": "VDDIO", "type": "power_in"},
+      "3": {"name": "GND", "type": "power_in"},
+      "4": {"name": "CSB", "type": "input"},
+      "5": {"name": "SDI", "type": "bidirectional"},
+      "6": {"name": "SDO", "type": "output"},
+      "7": {"name": "SCK", "type": "input"},
+      "8": {"name": "INT", "type": "output"},
+      "9": {"name": "GND", "type": "power_in"},
+      "10": {"name": "GND", "type": "power_in"}
+    },
+    "datasheet_url": "https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf",
+    "verified": "2026-03-16",
+    "notes": "High-accuracy barometric pressure sensor. I2C: SDO=addr select (GND=0x76, VDDIO=0x77), CSB=high. 100nF on VDD and VDDIO."
+  },
+
+  "FUSB302B": {
+    "package": "MLP-14",
+    "manufacturer": "onsemi",
+    "pins": {
+      "1": {"name": "VDD", "type": "power_in"},
+      "2": {"name": "INT_N", "type": "output"},
+      "3": {"name": "VBUS", "type": "power_in"},
+      "4": {"name": "CC1", "type": "bidirectional"},
+      "5": {"name": "CC2", "type": "bidirectional"},
+      "6": {"name": "VCONN_CC1", "type": "power_out"},
+      "7": {"name": "VCONN_CC2", "type": "power_out"},
+      "8": {"name": "MEASURE", "type": "input"},
+      "9": {"name": "SCL", "type": "input"},
+      "10": {"name": "SDA", "type": "bidirectional"},
+      "11": {"name": "ADDR1", "type": "input"},
+      "12": {"name": "ADDR0", "type": "input"},
+      "13": {"name": "GND", "type": "power_in"},
+      "14": {"name": "GND", "type": "power_in"}
+    },
+    "datasheet_url": "https://www.onsemi.com/download/data-sheet/pdf/fusb302b-d.pdf",
+    "verified": "2026-03-16",
+    "notes": "USB Type-C PD controller. I2C address set by ADDR pins. Requires 1uF on VDD, 100nF on VBUS. INT_N is open-drain, needs pull-up."
+  },
+
+  "RP2040": {
+    "package": "QFN-56",
+    "manufacturer": "Raspberry Pi",
+    "pins": {
+      "1": {"name": "IOVDD", "type": "power_in"},
+      "2": {"name": "GPIO0", "type": "bidirectional"},
+      "3": {"name": "GPIO1", "type": "bidirectional"},
+      "4": {"name": "GPIO2", "type": "bidirectional"},
+      "5": {"name": "GPIO3", "type": "bidirectional"},
+      "6": {"name": "GPIO4", "type": "bidirectional"},
+      "7": {"name": "GPIO5", "type": "bidirectional"},
+      "8": {"name": "GPIO6", "type": "bidirectional"},
+      "9": {"name": "GPIO7", "type": "bidirectional"},
+      "10": {"name": "IOVDD", "type": "power_in"},
+      "11": {"name": "GPIO8", "type": "bidirectional"},
+      "12": {"name": "GPIO9", "type": "bidirectional"},
+      "13": {"name": "GPIO10", "type": "bidirectional"},
+      "14": {"name": "GPIO11", "type": "bidirectional"},
+      "15": {"name": "GPIO12", "type": "bidirectional"},
+      "16": {"name": "GPIO13", "type": "bidirectional"},
+      "17": {"name": "GPIO14", "type": "bidirectional"},
+      "18": {"name": "GPIO15", "type": "bidirectional"},
+      "19": {"name": "TESTEN", "type": "input"},
+      "20": {"name": "XIN", "type": "input"},
+      "21": {"name": "XOUT", "type": "output"},
+      "22": {"name": "IOVDD", "type": "power_in"},
+      "23": {"name": "DVDD", "type": "power_in"},
+      "24": {"name": "SWCLK", "type": "input"},
+      "25": {"name": "SWD", "type": "bidirectional"},
+      "26": {"name": "GPIO16", "type": "bidirectional"},
+      "27": {"name": "GPIO17", "type": "bidirectional"},
+      "28": {"name": "GPIO18", "type": "bidirectional"},
+      "29": {"name": "GPIO19", "type": "bidirectional"},
+      "30": {"name": "GPIO20", "type": "bidirectional"},
+      "31": {"name": "GPIO21", "type": "bidirectional"},
+      "32": {"name": "GPIO22", "type": "bidirectional"},
+      "33": {"name": "IOVDD", "type": "power_in"},
+      "34": {"name": "GPIO23", "type": "bidirectional"},
+      "35": {"name": "GPIO24", "type": "bidirectional"},
+      "36": {"name": "GPIO25", "type": "bidirectional"},
+      "37": {"name": "GPIO26/ADC0", "type": "bidirectional"},
+      "38": {"name": "GPIO27/ADC1", "type": "bidirectional"},
+      "39": {"name": "GPIO28/ADC2", "type": "bidirectional"},
+      "40": {"name": "GPIO29/ADC3", "type": "bidirectional"},
+      "41": {"name": "IOVDD", "type": "power_in"},
+      "42": {"name": "ADC_AVDD", "type": "power_in"},
+      "43": {"name": "VREG_VIN", "type": "power_in"},
+      "44": {"name": "VREG_VOUT", "type": "power_out"},
+      "45": {"name": "USB_DM", "type": "bidirectional"},
+      "46": {"name": "USB_DP", "type": "bidirectional"},
+      "47": {"name": "USB_VDD", "type": "power_in"},
+      "48": {"name": "IOVDD", "type": "power_in"},
+      "49": {"name": "DVDD", "type": "power_in"},
+      "50": {"name": "QSPI_SD3", "type": "bidirectional"},
+      "51": {"name": "QSPI_SCLK", "type": "output"},
+      "52": {"name": "QSPI_SD0", "type": "bidirectional"},
+      "53": {"name": "QSPI_SD2", "type": "bidirectional"},
+      "54": {"name": "QSPI_SD1", "type": "bidirectional"},
+      "55": {"name": "QSPI_SS_N", "type": "output"},
+      "56": {"name": "DVDD", "type": "power_in"},
+      "57": {"name": "GND", "type": "power_in"}
+    },
+    "datasheet_url": "https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf",
+    "verified": "2026-03-16",
+    "notes": "Dual-core ARM Cortex-M0+. Pin 57 is exposed pad (GND). 12MHz crystal on XIN/XOUT. TESTEN must be tied to GND. 1uF on each IOVDD, 100nF on DVDD, 1uF on USB_VDD."
+  }
+}

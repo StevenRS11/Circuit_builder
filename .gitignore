@@ -1,0 +1,24 @@
+# ──────────────────────────────────────────────────────────────
+# This repo ships ONLY the kicad-schematic-gen skill + its docs.
+# Board-specific project outputs, scratch, and caches are ignored.
+# Whitelist approach: ignore every top-level entry, then re-include
+# exactly what we want to publish.
+# ──────────────────────────────────────────────────────────────
+
+# Ignore everything at the repo root...
+/*
+
+# ...except the skill, the project docs, and git meta files.
+!.claude/
+!CLAUDE.md
+!improvements.md
+!.gitignore
+!.gitattributes
+
+# Local Claude Code settings are machine-specific — never publish them.
+.claude/settings.local.json
+
+# Python / pytest caches (including inside the skill's tests/).
+__pycache__/
+*.py[cod]
+.pytest_cache/

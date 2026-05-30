@@ -1,0 +1,465 @@
+# ─────────────────────────────────────────────────────────────
+# Netlist (Stage 5b) — battery_3s
+# ─────────────────────────────────────────────────────────────
+# Pin-level connection declarations. Source of truth for Stage 6
+# generation and Stage 7 verification. Every pin appears in
+# exactly one net OR in no_connects.
+# ─────────────────────────────────────────────────────────────
+
+project: "battery_3s"
+source: "battery_3s_04_implementation.md"
+
+# ─────────────────────────────────────────────────────────────
+# Components — manifest of every populated part with its pins
+# ─────────────────────────────────────────────────────────────
+
+components:
+  # ── ICs ──
+  U1:
+    part: "CH224K"
+    pins: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
+  U2:
+    part: "BQ24650"
+    pins: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"]
+  U3:
+    part: "TPS54202DDC"
+    pins: ["1", "2", "3", "4", "5", "6"]
+  U4:
+    part: "LTC4412xS6"
+    pins: ["1", "2", "3", "4", "5", "6"]
+
+  # ── Transistors ──
+  Q1:
+    part: "AO3401A"
+    pins: ["1", "2", "3"]
+  Q4:
+    part: "AO3401A"
+    pins: ["1", "2", "3"]
+  Q2:
+    part: "AO3400A"
+    pins: ["1", "2", "3"]
+  Q3:
+    part: "AO3400A"
+    pins: ["1", "2", "3"]
+
+  # ── Inductors ──
+  L1:
+    part: "10uH 5A"
+    pins: ["1", "2"]
+  L2:
+    part: "10uH 2A"
+    pins: ["1", "2"]
+
+  # ── Diodes / LEDs ──
+  D1:
+    part: "LED Green 0805"
+    pins: ["1", "2"]   # 1=K, 2=A
+  D2:
+    part: "LED Red 0805"
+    pins: ["1", "2"]   # 1=K, 2=A
+
+  # ── Protection / Sensors ──
+  F1:
+    part: "Polyfuse 3A/6A 1812"
+    pins: ["1", "2"]
+  RT1:
+    part: "NTC 10k B3950 0805"
+    pins: ["1", "2"]
+
+  # ── Connectors ──
+  J1:
+    part: "USB-C Receptacle power-only 6P (GCT USB4125)"
+    pins: ["A5", "A9", "A12", "B5", "B9", "B12", "S1"]
+  J2:
+    part: "JST-PH 2-pin"
+    pins: ["1", "2"]
+  J4:
+    part: "JST-PH 2-pin"
+    pins: ["1", "2"]
+  J5:
+    part: "JST-PH 2-pin"
+    pins: ["1", "2"]
+  J6:
+    part: "Pin header 1x3 2.54mm"
+    pins: ["1", "2", "3"]
+  J7:
+    part: "JST-PH 2-pin (master power switch)"
+    pins: ["1", "2"]
+
+  # ── Resistors (populated only) ──
+  R1:  { part: "56k 5% 0805",   pins: ["1", "2"] }
+  R4:  { part: "953k 1% 0805",  pins: ["1", "2"] }
+  R5:  { part: "200k 1% 0805",  pins: ["1", "2"] }
+  R6:  { part: "1.1M 1% 0805",  pins: ["1", "2"] }
+  R7:  { part: "100k 1% 0805",  pins: ["1", "2"] }
+  R8:  { part: "30m 1% 1206",   pins: ["1", "2"] }
+  R9:  { part: "10k 1% 0805",   pins: ["1", "2"] }
+  R10: { part: "100k 1% 0805",  pins: ["1", "2"] }
+  R11: { part: "13.3k 1% 0805", pins: ["1", "2"] }
+  R12: { part: "100k 5% 0805",  pins: ["1", "2"] }
+  R13: { part: "10k 5% 0805",   pins: ["1", "2"] }
+  R14: { part: "10k 5% 0805",   pins: ["1", "2"] }
+  R15: { part: "10k 5% 0805",   pins: ["1", "2"] }
+  R16: { part: "1k 5% 0805",    pins: ["1", "2"] }
+  R17: { part: "1k 5% 0805",    pins: ["1", "2"] }
+  R19: { part: "1M 5% 0805",    pins: ["1", "2"] }
+  R20: { part: "100k 5% 0805",  pins: ["1", "2"] }
+  R23: { part: "10R 5% 0805",   pins: ["1", "2"] }
+  R24: { part: "10R 5% 0805",   pins: ["1", "2"] }
+
+  # ── Capacitors ──
+  C1:  { part: "10uF 50V X7R 0805",   pins: ["1", "2"] }
+  C2:  { part: "100nF 50V X7R 0805",  pins: ["1", "2"] }
+  C3:  { part: "100nF 50V X7R 0805",  pins: ["1", "2"] }
+  C4:  { part: "1uF 16V X7R 0805",    pins: ["1", "2"] }
+  C5:  { part: "47nF 50V X7R 0805",   pins: ["1", "2"] }
+  C6:  { part: "1uF 10V X7R 0805",    pins: ["1", "2"] }
+  C7:  { part: "10uF 25V X7R 0805",   pins: ["1", "2"] }
+  C8:  { part: "10uF 25V X7R 0805",   pins: ["1", "2"] }
+  C9:  { part: "100nF 25V X7R 0805",  pins: ["1", "2"] }
+  C10: { part: "10uF 25V X7R 0805",   pins: ["1", "2"] }
+  C11: { part: "100nF 25V X7R 0805",  pins: ["1", "2"] }
+  C12: { part: "100nF 10V X7R 0805",  pins: ["1", "2"] }
+  C13: { part: "10uF 16V X7R 0805",   pins: ["1", "2"] }
+  C14: { part: "10uF 16V X7R 0805",   pins: ["1", "2"] }
+  C15: { part: "100nF 16V X7R 0805",  pins: ["1", "2"] }
+  C16: { part: "10nF 25V X7R 0805",   pins: ["1", "2"] }
+  C17: { part: "100nF 10V X7R 0805",  pins: ["1", "2"] }
+  C18: { part: "1uF 25V X7R 0805",    pins: ["1", "2"] }
+  C19: { part: "100nF 25V X7R 0805",  pins: ["1", "2"] }
+
+# ─────────────────────────────────────────────────────────────
+# Nets — every connection in the design
+# ─────────────────────────────────────────────────────────────
+
+nets:
+
+  GND:
+    type: power
+    pins:
+      - { ref: U1, pin: "11", function: "GND/EP" }
+      - { ref: U2, pin: "11", function: "GND" }
+      - { ref: U2, pin: "17", function: "GND/EP" }
+      - { ref: U3, pin: "1",  function: "GND" }
+      - { ref: Q3, pin: "2",  function: "S (low-side N-FET source)" }
+      - { ref: D1, pin: "1",  function: "K (power LED cathode)" }
+      - { ref: RT1, pin: "2", function: "NTC GND side" }
+      - { ref: U4, pin: "2",  function: "ideal-diode controller GND" }
+      - { ref: U4, pin: "3",  function: "CTL tied to GND (enable PowerPath)" }
+      - { ref: J1, pin: "A12", function: "GND" }
+      - { ref: J1, pin: "B12", function: "GND" }
+      - { ref: J1, pin: "S1", function: "SHIELD (tied to GND)" }
+      - { ref: J2, pin: "2",  function: "B− (pack negative)" }
+      - { ref: J4, pin: "2",  function: "VSTEPPER output GND return" }
+      - { ref: J5, pin: "2",  function: "+5V output GND return" }
+      - { ref: J6, pin: "3",  function: "Status header GND" }
+      - { ref: R1, pin: "2",  function: "CFG1 strap to GND" }
+      - { ref: R5, pin: "2",  function: "VFB divider bottom" }
+      - { ref: R7, pin: "2",  function: "MPPSET divider bottom" }
+      - { ref: R11, pin: "2", function: "5V FB divider bottom" }
+      - { ref: R19, pin: "2", function: "Q1 gate pull-down" }
+      - { ref: C1, pin: "2",  function: "VBUS bulk return" }
+      - { ref: C2, pin: "2",  function: "CH224K VDD decouple" }
+      - { ref: C3, pin: "2",  function: "BQ24650 VCC decouple" }
+      - { ref: C4, pin: "2",  function: "REGN cap return" }
+      - { ref: C6, pin: "2",  function: "VREF cap return" }
+      - { ref: C7, pin: "2",  function: "BAT bulk #1 return" }
+      - { ref: C8, pin: "2",  function: "BAT bulk #2 return" }
+      - { ref: C9, pin: "2",  function: "VSTEPPER ceramic return" }
+      - { ref: C10, pin: "2", function: "TPS54202 VIN bulk return" }
+      - { ref: C11, pin: "2", function: "TPS54202 VIN decouple return" }
+      - { ref: C13, pin: "2", function: "+5V output bulk #1 return" }
+      - { ref: C14, pin: "2", function: "+5V output bulk #2 return" }
+      - { ref: C15, pin: "2", function: "+5V ceramic return" }
+      - { ref: C17, pin: "2", function: "TS filter return" }
+      - { ref: C18, pin: "2", function: "USB-side bulk return" }
+      - { ref: C19, pin: "2", function: "ideal-diode VIN decouple return" }
+    power_symbols: ["GND"]
+
+  # USB-C input domain (source side of the ideal diode). CH224K senses VBUS here;
+  # U4/Q4 block the battery from back-feeding this node so the PD source and CH224K
+  # always see a clean from-zero VBUS — fixes on-battery PD triggering.
+  VBUS_USB:
+    type: power
+    pins:
+      - { ref: J1, pin: "A9", function: "VBUS (USB-C)" }
+      - { ref: J1, pin: "B9", function: "VBUS (USB-C)" }
+      - { ref: U1, pin: "1",  function: "CH224K VDD" }
+      - { ref: U1, pin: "8",  function: "CH224K VBUS sense" }
+      - { ref: U4, pin: "6",  function: "ideal-diode SENSE (input side)" }
+      - { ref: Q4, pin: "3",  function: "P-FET drain (USB input side)" }
+      - { ref: C2, pin: "1",  function: "CH224K VDD decouple" }
+      - { ref: C18, pin: "1", function: "USB-side input bulk" }
+    power_symbols: ["VBUS_USB"]
+
+  # Charger input domain (output side of the ideal diode). Fed from VBUS_USB
+  # through Q4 when USB present; isolated from it when USB absent. (This node is
+  # still back-fed to ~VBAT-0.6 by Q2's body diode in standby — sized into the budget.)
+  VBUS_CHG:
+    type: power
+    pins:
+      - { ref: U4, pin: "1",  function: "ideal-diode VIN (output side, IC supply)" }
+      - { ref: Q4, pin: "2",  function: "P-FET source (charger side)" }
+      - { ref: U2, pin: "1",  function: "BQ24650 VCC" }
+      - { ref: Q2, pin: "3",  function: "D (high-side N-FET drain = charger VIN)" }
+      - { ref: R6, pin: "1",  function: "MPPSET divider top" }
+      - { ref: C1, pin: "1",  function: "charger input bulk" }
+      - { ref: C3, pin: "1",  function: "BQ24650 VCC decouple" }
+      - { ref: C19, pin: "1", function: "ideal-diode VIN decouple" }
+
+  GATE_USB:
+    type: signal
+    pins:
+      - { ref: U4, pin: "5",  function: "GATE (ideal-diode P-FET drive)" }
+      - { ref: Q4, pin: "1",  function: "P-FET gate" }
+
+  # Pack / charger-output rail (always connected to the pack via Q1). The charger
+  # charges to here and VFB charge-cutoff senses here, so charging works with the
+  # master switch off. Reaches the loads only through the master switch (J7).
+  VBAT:
+    type: power
+    pins:
+      - { ref: R8, pin: "2",  function: "sense battery side (charger output)" }
+      - { ref: R24, pin: "1", function: "SRP filter input" }
+      - { ref: Q1, pin: "3",  function: "D (reverse-pol P-FET drain, board side)" }
+      - { ref: R4, pin: "1",  function: "VFB divider top (charge-cutoff sense)" }
+      - { ref: C7, pin: "1",  function: "BAT bulk #1" }
+      - { ref: C8, pin: "1",  function: "BAT bulk #2" }
+      - { ref: J7, pin: "1",  function: "master switch input (pack/charger rail)" }
+
+  # Switched load bus (downstream of the master switch J7). Feeds both outputs:
+  # J4 stepper rail directly and U3 buck -> +5V. Dead in storage (switch open).
+  VSTEPPER:
+    type: power
+    pins:
+      - { ref: J7, pin: "2",  function: "master switch output (to loads)" }
+      - { ref: R12, pin: "1", function: "TPS54202 EN pull-up to VIN" }
+      - { ref: U3, pin: "3",  function: "VIN" }
+      - { ref: C9, pin: "1",  function: "VSTEPPER ceramic" }
+      - { ref: C10, pin: "1", function: "TPS54202 VIN bulk" }
+      - { ref: C11, pin: "1", function: "TPS54202 VIN decouple" }
+      - { ref: J4, pin: "1",  function: "VSTEPPER output" }
+    power_symbols: ["VSTEPPER"]
+
+  B_PLUS:
+    type: power
+    pins:
+      - { ref: F1, pin: "2",  function: "Polyfuse output (B+ board side)" }
+      - { ref: Q1, pin: "2",  function: "S (reverse-pol P-FET source, battery side)" }
+      - { ref: R20, pin: "2", function: "Q1 gate-source clamp to S" }
+
+  PACK_PLUS:
+    type: power
+    pins:
+      - { ref: J2, pin: "1",  function: "Battery main + (pack raw)" }
+      - { ref: F1, pin: "1",  function: "Polyfuse input" }
+
+  Q1_GATE:
+    type: signal
+    pins:
+      - { ref: Q1, pin: "1",  function: "G" }
+      - { ref: R19, pin: "1", function: "Gate pull-down high side" }
+      - { ref: R20, pin: "1", function: "Gate-source clamp high side" }
+
+  PHASE:
+    type: power
+    class: switching              # BQ24650 sync-buck switch node — primary aggressor
+    pins:
+      - { ref: Q2, pin: "2",  function: "S (high-side N-FET source)" }
+      - { ref: Q3, pin: "3",  function: "D (low-side N-FET drain)" }
+      - { ref: L1, pin: "1",  function: "Inductor input" }
+      - { ref: U2, pin: "14", function: "PH (phase / switch node)" }
+      - { ref: C5, pin: "2",  function: "BTST cap, PHASE side" }
+
+  BTST:
+    type: signal
+    pins:
+      - { ref: U2, pin: "16", function: "BTST (bootstrap pin)" }
+      - { ref: C5, pin: "1",  function: "BTST cap, BTST side" }
+
+  REGN:
+    type: power
+    pins:
+      - { ref: U2, pin: "12", function: "REGN (internal LDO output)" }
+      - { ref: C4, pin: "1",  function: "REGN cap" }
+
+  VREF:
+    type: power
+    class: reference              # BQ24650 internal reference output
+    pins:
+      - { ref: U2, pin: "6",  function: "VREF output" }
+      - { ref: U2, pin: "7",  function: "TERM_EN tied to VREF (always-on charge termination)" }
+      - { ref: C6, pin: "1",  function: "VREF cap" }
+      - { ref: R9, pin: "1",  function: "TS pull-up to VREF" }
+
+  L1_OUT:
+    type: power
+    pins:
+      - { ref: L1, pin: "2",  function: "Inductor output" }
+      - { ref: R8, pin: "1",  function: "Sense resistor inductor side" }
+      - { ref: R23, pin: "1", function: "SRN filter input (Kelvin tap)" }
+
+  SRN:
+    type: signal
+    class: analog_differential
+    pair: ISENSE
+    polarity: N
+    source_z: low                 # Kelvin tap across low-value sense R → guarding low priority
+    pins:
+      - { ref: R23, pin: "2", function: "SRN filter output" }
+      - { ref: U2, pin: "9",  function: "SRN (sense low)" }
+      - { ref: C16, pin: "1", function: "Diff cap SRN side" }
+
+  SRP:
+    type: signal
+    class: analog_differential
+    pair: ISENSE
+    polarity: P
+    source_z: low
+    pins:
+      - { ref: R24, pin: "2", function: "SRP filter output" }
+      - { ref: U2, pin: "10", function: "SRP (sense high)" }
+      - { ref: C16, pin: "2", function: "Diff cap SRP side" }
+
+  CC1:
+    type: signal
+    pins:
+      - { ref: J1, pin: "A5", function: "USB-C CC1" }
+      - { ref: U1, pin: "7",  function: "CH224K CC1" }
+
+  CC2:
+    type: signal
+    pins:
+      - { ref: J1, pin: "B5", function: "USB-C CC2" }
+      - { ref: U1, pin: "6",  function: "CH224K CC2" }
+
+  CFG1_STRAP:
+    type: signal
+    pins:
+      - { ref: U1, pin: "9",  function: "CFG1 (15V strap select)" }
+      - { ref: R1, pin: "1",  function: "Strap resistor top" }
+
+  PG_NET:
+    type: signal
+    pins:
+      - { ref: U1, pin: "10", function: "PG (open-collector)" }
+      - { ref: R15, pin: "2", function: "PG pull-up bottom" }
+      - { ref: J6, pin: "2",  function: "PG to status header" }
+
+  STAT1:
+    type: signal
+    pins:
+      - { ref: U2, pin: "3",  function: "STAT1 (open-collector, LOW = charging)" }
+      - { ref: R13, pin: "2", function: "STAT1 pull-up bottom" }
+      - { ref: D2, pin: "1",  function: "Charge LED K (drives LED when STAT1 LOW)" }
+      - { ref: J6, pin: "1",  function: "CHG to status header" }
+
+  STAT2:
+    type: signal
+    pins:
+      - { ref: U2, pin: "5",  function: "STAT2 (open-collector)" }
+      - { ref: R14, pin: "2", function: "STAT2 pull-up bottom" }
+
+  VFB:
+    type: signal
+    class: high_impedance         # divider-tap feedback node — keep away from PHASE
+    pins:
+      - { ref: U2, pin: "8",  function: "VFB (battery voltage feedback)" }
+      - { ref: R4, pin: "2",  function: "Divider top bottom" }
+      - { ref: R5, pin: "1",  function: "Divider bottom top" }
+
+  MPPSET:
+    type: signal
+    class: high_impedance         # divider setpoint node — keep away from PHASE
+    pins:
+      - { ref: U2, pin: "2",  function: "MPPSET (input voltage regulation setpoint)" }
+      - { ref: R6, pin: "2",  function: "Divider top bottom" }
+      - { ref: R7, pin: "1",  function: "Divider bottom top" }
+
+  TS_NET:
+    type: signal
+    class: analog                 # thermistor sense input
+    pins:
+      - { ref: U2, pin: "4",  function: "TS (thermistor sense)" }
+      - { ref: R9, pin: "2",  function: "TS pull-up bottom" }
+      - { ref: RT1, pin: "1", function: "NTC high side" }
+      - { ref: C17, pin: "1", function: "TS filter cap" }
+
+  HIDRV_GATE:
+    type: signal
+    pins:
+      - { ref: U2, pin: "15", function: "HIDRV (high-side gate drive)" }
+      - { ref: Q2, pin: "1",  function: "G (high-side N-FET gate)" }
+
+  LODRV_GATE:
+    type: signal
+    pins:
+      - { ref: U2, pin: "13", function: "LODRV (low-side gate drive)" }
+      - { ref: Q3, pin: "1",  function: "G (low-side N-FET gate)" }
+
+  "+5V":
+    type: power
+    pins:
+      - { ref: L2, pin: "2",  function: "5V buck inductor output" }
+      - { ref: R10, pin: "1", function: "5V FB divider top" }
+      - { ref: R13, pin: "1", function: "STAT1 pull-up top" }
+      - { ref: R14, pin: "1", function: "STAT2 pull-up top" }
+      - { ref: R15, pin: "1", function: "PG pull-up top" }
+      - { ref: R16, pin: "1", function: "D1 LED current limit top" }
+      - { ref: R17, pin: "1", function: "D2 LED current limit top" }
+      - { ref: J5, pin: "1",  function: "+5V output" }
+      - { ref: C13, pin: "1", function: "Output bulk #1" }
+      - { ref: C14, pin: "1", function: "Output bulk #2" }
+      - { ref: C15, pin: "1", function: "Output ceramic" }
+    power_symbols: ["+5V"]
+
+  SW_5V:
+    type: power
+    class: switching              # TPS54202 switch node — secondary aggressor
+    pins:
+      - { ref: U3, pin: "2",  function: "SW (TPS54202 switch node)" }
+      - { ref: L2, pin: "1",  function: "Buck inductor input" }
+      - { ref: C12, pin: "2", function: "BOOT cap SW side" }
+
+  BOOT_5V:
+    type: signal
+    pins:
+      - { ref: U3, pin: "6",  function: "BOOT" }
+      - { ref: C12, pin: "1", function: "BOOT cap top" }
+
+  FB_5V:
+    type: signal
+    class: high_impedance         # TPS54202 feedback divider node — keep away from SW_5V
+    pins:
+      - { ref: U3, pin: "4",  function: "FB (5V buck feedback)" }
+      - { ref: R10, pin: "2", function: "FB divider top bottom" }
+      - { ref: R11, pin: "1", function: "FB divider bottom top" }
+
+  EN_5V:
+    type: signal
+    pins:
+      - { ref: U3, pin: "5",  function: "EN" }
+      - { ref: R12, pin: "2", function: "EN pull-up bottom" }
+
+  LED_PWR_A:
+    type: signal
+    pins:
+      - { ref: R16, pin: "2", function: "D1 current-limit resistor bottom" }
+      - { ref: D1, pin: "2",  function: "Power LED A (anode)" }
+
+  LED_CHG_A:
+    type: signal
+    pins:
+      - { ref: R17, pin: "2", function: "D2 current-limit resistor bottom" }
+      - { ref: D2, pin: "2",  function: "Charge LED A (anode)" }
+
+# ─────────────────────────────────────────────────────────────
+# No-connects — pins intentionally left unconnected
+# ─────────────────────────────────────────────────────────────
+
+no_connects:
+  - { ref: U4, pin: "4",  reason: "LTC4412 STAT (open-drain status) — not used" }
+  - { ref: U1, pin: "2",  reason: "CFG2 must be unconnected in CH224K resistor mode (datasheet constraint)" }
+  - { ref: U1, pin: "3",  reason: "CFG3 must be unconnected in CH224K resistor mode" }
+  - { ref: U1, pin: "4",  reason: "DP (USB data) — power-only sink, not used" }
+  - { ref: U1, pin: "5",  reason: "DM (USB data) — power-only sink, not used" }

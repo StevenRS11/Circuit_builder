@@ -1,0 +1,84 @@
+# analog_recipes.yaml
+# ---------------------------------------------------------------------------
+# Front-end "recipes" for sensitive analog ICs. This is the knowledge base that
+# analyze_analog.py (Stage 5) uses to check that a precision analog part has the
+# support circuitry its datasheet expects — BEFORE the schematic becomes wires.
+#
+# The recipe lets the checker catch the classic defect (a sensitive input wired
+# straight from a connector to the ADC pin with no anti-alias / EMI filter) even
+# when the designer forgot to classify the nets, because the recipe knows which
+# of the part's pins are differential inputs / supplies / references.
+#
+# See references/analog_layout.md for the reasoning behind every check.
+#
+# Recipe schema (all pins are strings, matching the netlist):
+#   <KEY>:
+#     aliases: [ ... ]            # part-number strings that map to this recipe
+#                                 # (matched case-insensitively as a substring)
+#     family: <str>              # informational grouping
+#     description: <str>
+#     source_z_default: low|high  # source impedance of the sensor — governs
+#                                 # whether guarding matters downstream (Stage 8)
+#     differential_inputs:        # differential ADC/amp input pin pairs
+#       - { p: "<pin>", n: "<pin>", name: "<str>" }
+#     input_frontend:             # what the inputs should have (analog_layout §3.1)
+#       differential_cap: { required: bool, typ: "<str>", note: "<str>" }
+#       common_mode_caps: { required: bool, note: "<str>" }
+#       series_r:         { required: bool, typ: "<str>" }
+#     decoupling:                 # cap-to-GND expected on these pins
+#       - { pin: "<pin>", role: "<str>", min_uf: <float> }
+#     ratiometric:
+#       supported: bool
+#       ref_high_pin: "<pin>"     # REFP / REF+
+#       ref_low_pin: "<pin>"      # REFN / REF-
+#       note: "<str>"
+# ---------------------------------------------------------------------------
+
+recipes:
+
+  NAU7802:
+    aliases: ["NAU7802", "NAU7802SGI"]
+    family: precision_bridge_adc
+    description: "24-bit dual-channel bridge/load-cell ADC, on-chip PGA, ratiometric reference"
+    source_z_default: low          # 350R/1k load-cell bridge → guarding is low priority
+    differential_inputs:
+      - { p: "3", n: "2", name: "VIN1 (channel A)" }   # VIN1P / VIN1N
+      - { p: "5", n: "4", name: "VIN2 (channel B)" }   # VIN2P / VIN2N
+    input_frontend:
+      differential_cap:
+        required: true
+        typ: "330pF (3.3V AVDD) / 680pF (4.5V AVDD)"
+        note: "anti-alias + EMI/RF-rectification filter across the pair (datasheet-characterized)"
+      common_mode_caps:
+        required: false
+        note: "one matched cap per leg to AVSS; keep Cdiff >= ~10x Ccm so mismatch can't unbalance the pair"
+      series_r:
+        required: false
+        typ: "100-1k per leg"
+    decoupling:
+      - { pin: "16", role: "AVDD / internal LDO output", min_uf: 1.0 }
+      - { pin: "1",  role: "REFP bypass",                min_uf: 0.1 }
+      - { pin: "6",  role: "VBG bandgap bypass",         min_uf: 0.1 }
+      - { pin: "15", role: "DVDD",                       min_uf: 0.1 }
+    ratiometric:
+      supported: true
+      ref_high_pin: "1"            # REFP
+      ref_low_pin: "7"             # REFN
+      note: "tie REFP/REFN to the bridge excitation (AVDD domain) so excitation noise/drift cancels"
+
+  # ── Template for adding more parts ────────────────────────────────────────
+  # HX711:
+  #   aliases: ["HX711"]
+  #   family: precision_bridge_adc
+  #   description: "24-bit bridge ADC for weigh scales"
+  #   source_z_default: low
+  #   differential_inputs:
+  #     - { p: "INA+", n: "INA-", name: "channel A" }
+  #   input_frontend:
+  #     differential_cap: { required: true, typ: "100pF-1nF", note: "anti-alias/EMI" }
+  #     common_mode_caps: { required: false }
+  #     series_r:         { required: false }
+  #   decoupling:
+  #     - { pin: "AVDD", role: "analog supply", min_uf: 0.1 }
+  #   ratiometric:
+  #     supported: true
