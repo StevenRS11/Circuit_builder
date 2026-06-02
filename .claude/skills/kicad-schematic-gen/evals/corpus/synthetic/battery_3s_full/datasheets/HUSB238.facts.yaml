@@ -1,0 +1,29 @@
+mpn: "HUSB238_002DD"
+role: "USB-C PD sink controller (EPR-capable)"
+package: "DFN-10 (3x3mm, 0.5mm pitch, exposed pad)"   # actual; LCSC variant 002DD
+datasheet: "HUSB238.pdf"
+sourcing: { distributor: "LCSC", distributor_pn: "C7471904", stock: 1174, price: "$0.23" }
+# NO KiCad built-in symbol/footprint (check_kicad_library: found=false). Symbol must be
+# authored or pulled from SnapEDA/EasyEDA; DFN-10_3x3 footprint exists generically in KiCad.
+kicad: { lib_id: "", footprint: "Package_DFN_QFN:DFN-10-1EP_3x3mm_P0.5mm_EP1.5x2.4mm", found: false }
+# Pinout for the 002DD DFN-10 variant (Hynetek datasheet). Pin order per datasheet; treat
+# as UNVERIFIED until re-derived against the PDF in Stage 4.
+pins:
+  - { number: "1",  name: "VIN/VBUS", type: "power_in",     page: 4 }   # VBUS from Type-C connector; supplies internal circuitry
+  - { number: "2",  name: "CC1",      type: "bidirectional", page: 4 }  # Type-C CC1
+  - { number: "3",  name: "CC2",      type: "bidirectional", page: 4 }  # Type-C CC2
+  - { number: "4",  name: "VDD",      type: "power_in",      page: 4 }  # internal LDO out / decouple
+  - { number: "5",  name: "GND",      type: "power_in",      page: 4 }
+  - { number: "6",  name: "VSET",     type: "passive",       page: 4 }  # voltage select: resistor to GND (100uA source); sets requested V
+  - { number: "7",  name: "ISET",     type: "passive",       page: 4 }  # current select: resistor to GND
+  - { number: "8",  name: "GATE",     type: "open_collector", page: 4 } # open-drain, controls external VBUS switch (output enable)
+  - { number: "9",  name: "PG/FAULT", type: "open_collector", page: 4 } # power-good / fault open-drain flag
+  - { number: "10", name: "EN/INT",   type: "input",         page: 4 }  # enable input / interrupt (can disable GATE driver)
+pinout_verified: false
+# WARNING: DFN-10 pin assignment above is approximate (datasheet returned QFN-16 for the
+# I2C variant; the 002DD GPIO variant is DFN-10). MUST be re-derived from HUSB238.pdf in
+# Stage 4 before use.
+# 15V selection: RVSET resistor VSET->GND. ~14k requests 15V (NC default = 20V).
+# VBUS gate: YES. GATE pin is an open-drain output that drives an EXTERNAL VBUS switch
+#   (integrated gate-driver concept), enabled after successful PD negotiation -> supports
+#   R7 output-enable. Like IP2721, the external FET is the actual blocking element.

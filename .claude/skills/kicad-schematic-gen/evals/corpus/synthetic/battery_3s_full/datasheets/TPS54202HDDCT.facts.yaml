@@ -1,0 +1,31 @@
+# TPS54202HDDCT.facts.yaml — intrinsic per-part facts. No per-design connectivity.
+mpn: "TPS54202HDDCT"
+role: "5V logic buck regulator"
+package: "SOT-23-6 (DDC)"
+datasheet: "TPS54202HDDCT.pdf"     # relative to the datasheets folder; SLVSDG7A, Apr 2021
+sourcing: { distributor: "LCSC", distributor_pn: "C134129", stock: 100000, price: "$0.21" }
+# stock listed as well over 100k on LCSC (in-stock, multi-source TI part)
+kicad:   { lib_id: "Regulator_Switching:TPS54202DDC", footprint: "Package_TO_SOT_SMD:SOT-23-6", found: true }
+# NOTE: KiCad symbol is TPS54202DDC (base part); the 'H' is the higher-temp/UVLO variant with the
+# same pinout & footprint — correct symbol to use.
+electrical:
+  vin_min: "4.5 V"
+  vin_max: "28 V"                   # recommended operating; abs-max VIN 30V
+  iout_max: "2.0 A"
+  fsw: "500 kHz"                    # center switching frequency
+  topology: "synchronous (integrated HS + LS NFET)"
+  external_inductor: true
+  inductor_typical: "10-15 uH"     # datasheet 5V examples use ~15uH (500kHz part)
+  output: "adjustable"
+  vref: "0.596 V (typ; 0.581-0.611)"
+  fb_resistors_for_5v0: "Vout = 0.596*(1+R1/R2); R1=73.2k (top), R2=10k (bottom) -> 5.0V"
+  bst_cap: "100 nF (0.1uF) BOOT->SW"
+  pg_pin: false                    # no power-good pin; 5V-rail indicator LED must be a simple rail tap
+pins:                              # number/name/type ONLY (intrinsic) — datasheet p.3 Table 5-1
+  - { number: "1", name: "GND",  type: "power_in",  page: 3 }
+  - { number: "2", name: "SW",   type: "power_out", page: 3 }
+  - { number: "3", name: "VIN",  type: "power_in",  page: 3 }
+  - { number: "4", name: "FB",   type: "input",     page: 3 }
+  - { number: "5", name: "EN",   type: "input",     page: 3 }
+  - { number: "6", name: "BOOT", type: "passive",   page: 3 }
+pinout_verified: false             # flip to true once Stage 4 re-derivation agrees

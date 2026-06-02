@@ -1,0 +1,209 @@
+# Stage 6 layout — battery_3s (Path A', MAX77961). Placement + IC pin-sides only.
+project: "battery_3s"
+title: "battery_3s - 3S LiPo Charger + Power Module (Path A', MAX77961)"
+rev: "3.0"
+
+power_nets: ["+5V"]
+
+placements:
+  # Band 1: USB-C input + PD sink + input sense (USB reverse-block Q2 removed — R7 via MAX77961 load disconnect)
+  J1:  { lib_id: "Connector:USB_C_Receptacle_GCT_USB4125_6P", x: 50,  y: 100 }
+  U6:  { lib_id: "Power_Protection:USBLC6-2SC6", x: 95,  y: 130 }
+  C3:  { lib_id: "Device:C", x: 70,  y: 70 }
+  C4:  { lib_id: "Device:C", x: 90,  y: 70 }
+  D3:  { lib_id: "Device:D_TVS", x: 75, y: 165 }
+  D8:  { lib_id: "Device:D_TVS", x: 110, y: 165 }   # 2nd VBUS TVS, parallel w/ D3 (flank J1 VBUS pins)
+  U1:  { lib_id: "Interface_USB:CH224K", x: 150, y: 110 }
+  R1:  { lib_id: "Device:R", x: 120, y: 140 }
+  R2:  { lib_id: "Device:R", x: 185, y: 70 }
+  RS1: { lib_id: "Device:R", x: 300, y: 80 }
+  R15: { lib_id: "Device:R", x: 290, y: 115 }
+  R16: { lib_id: "Device:R", x: 320, y: 115 }
+  C23: { lib_id: "Device:C", x: 305, y: 100 }
+  C14: { lib_id: "Device:C", x: 290, y: 135 }
+  C15: { lib_id: "Device:C", x: 320, y: 135 }
+  C1:  { lib_id: "Device:C", x: 340, y: 95 }
+  C2:  { lib_id: "Device:C", x: 355, y: 95 }
+
+  # Band 2: MAX77961 charger (center) + power stage + straps
+  U2:  { lib_id: "MAX77961EFV06_:MAX77961EFV06_", x: 440, y: 230 }
+  L1:  { lib_id: "Device:L", x: 520, y: 200 }
+  C10: { lib_id: "Device:C", x: 505, y: 150 }
+  C11: { lib_id: "Device:C", x: 525, y: 150 }
+  C5:  { lib_id: "Device:C", x: 560, y: 180 }
+  C6:  { lib_id: "Device:C", x: 575, y: 180 }
+  C7:  { lib_id: "Device:C", x: 590, y: 180 }
+  C8:  { lib_id: "Device:C", x: 560, y: 240 }
+  C9:  { lib_id: "Device:C", x: 600, y: 240 }
+  D7:  { lib_id: "Device:D", x: 580, y: 220 }
+  R3:  { lib_id: "Device:R", x: 360, y: 170 }
+  R4:  { lib_id: "Device:R", x: 360, y: 185 }
+  R5:  { lib_id: "Device:R", x: 360, y: 200 }
+  R6:  { lib_id: "Device:R", x: 360, y: 215 }
+  R7:  { lib_id: "Device:R", x: 360, y: 230 }
+  R8:  { lib_id: "Device:R", x: 360, y: 250 }
+  RT1: { lib_id: "Device:Thermistor_NTC", x: 335, y: 270 }
+  R9:  { lib_id: "Device:R", x: 385, y: 280 }
+  C12: { lib_id: "Device:C", x: 405, y: 290 }
+  C13: { lib_id: "Device:C", x: 420, y: 290 }
+  R10: { lib_id: "Device:R", x: 520, y: 260 }
+  R11: { lib_id: "Device:R", x: 535, y: 260 }
+  R12: { lib_id: "Device:R", x: 550, y: 260 }
+  R13: { lib_id: "Device:R", x: 565, y: 260 }
+  R14: { lib_id: "Device:R", x: 580, y: 260 }
+
+  # Band 3: Battery input + reverse-pol/inrush (Q1) + balance + DISQBAT driver
+  J2:  { lib_id: "Connector_Generic:Conn_01x02", x: 680, y: 95 }
+  Q1:  { lib_id: "Custom:AO4407A", x: 720, y: 125 }
+  R26: { lib_id: "Device:R", x: 750, y: 160 }
+  C16: { lib_id: "Device:C", x: 695, y: 160 }
+  R23: { lib_id: "Device:R", x: 660, y: 250 }
+  Q8:  { lib_id: "Device:Q_NMOS_GSD", x: 660, y: 285 }
+  # charge-while-off override: Q9 pulls DISQBAT low when USB present (VIN_DET divider R24/R25)
+  Q9:  { lib_id: "Device:Q_NMOS_GSD", x: 610, y: 285 }
+  R24: { lib_id: "Device:R", x: 610, y: 250 }
+  R25: { lib_id: "Device:R", x: 610, y: 320 }
+
+  # Band 4: 5V buck (AP63200)
+  U3:  { lib_id: "Regulator_Switching:AP63203WU", x: 140, y: 330 }
+  L2:  { lib_id: "Device:L", x: 185, y: 330 }
+  C17: { lib_id: "Device:C", x: 95,  y: 340 }
+  C18: { lib_id: "Device:C", x: 210, y: 345 }
+  C19: { lib_id: "Device:C", x: 225, y: 345 }
+  C20: { lib_id: "Device:C", x: 170, y: 305 }
+  R17: { lib_id: "Device:R", x: 205, y: 365 }
+  R18: { lib_id: "Device:R", x: 205, y: 385 }
+  R19: { lib_id: "Device:R", x: 110, y: 390 }
+  D1:  { lib_id: "Device:LED", x: 110, y: 410 }
+  C21: { lib_id: "Device:C", x: 240, y: 345 }
+  C22: { lib_id: "Device:C", x: 255, y: 345 }
+
+  # Band 5: master load switch + outputs + status
+  Q6:  { lib_id: "Custom:AO4407A", x: 390, y: 350 }
+  Q7:  { lib_id: "Device:Q_NMOS_GSD", x: 340, y: 400 }
+  R21: { lib_id: "Device:R", x: 300, y: 400 }
+  R27: { lib_id: "Device:R", x: 270, y: 360 }
+  R22: { lib_id: "Device:R", x: 355, y: 335 }
+  J7:  { lib_id: "Connector_Generic:Conn_01x02", x: 300, y: 370 }
+  J4:  { lib_id: "Connector_Generic:Conn_01x02", x: 480, y: 340 }
+  J5:  { lib_id: "Connector_Generic:Conn_01x02", x: 480, y: 380 }
+  J6:  { lib_id: "Connector_Generic:Conn_01x03", x: 550, y: 360 }
+  R20: { lib_id: "Device:R", x: 510, y: 410 }
+  D2:  { lib_id: "Device:LED", x: 530, y: 410 }
+
+symbols:
+  "Device:D_TVS":
+    ref_prefix: D
+    width: 7.62
+    pins:
+      - ["1", "A1", "passive", "left",  0]
+      - ["2", "A2", "passive", "right", 0]
+  "Device:Thermistor_NTC":
+    ref_prefix: RT
+    width: 7.62
+    pins:
+      - ["1", "1", "passive", "left",  0]
+      - ["2", "2", "passive", "right", 0]
+
+  "Custom:AO4407A":
+    ref_prefix: Q
+    width: 12.7
+    pins:
+      - ["1", "S", "passive", "left",   0]
+      - ["2", "S", "passive", "left",   1]
+      - ["3", "S", "passive", "left",   2]
+      - ["4", "G", "input",   "bottom", 0]
+      - ["5", "D", "passive", "right",  0]
+      - ["6", "D", "passive", "right",  1]
+      - ["7", "D", "passive", "right",  2]
+      - ["8", "D", "passive", "right",  3]
+
+  # Vendor SnapEDA symbol (Analog Devices MAX77961EFV06+), installed at
+  # D:\Documents\KiCad\8.0\symbols\MAX77961EFV06_.kicad_sym. The engine draws an
+  # equivalent box from these pins; the schematic references this lib_id and binds
+  # the vendor footprint (IC_MAX77961EFV06_). Vendor symbol+footprint have 30 pins
+  # (no EP/pin 31) — see netlist note.
+  "MAX77961EFV06_:MAX77961EFV06_":
+    ref_prefix: U
+    width: 33.02
+    pins:
+      - ["2",  "CHGIN",   "power_in",       "top",    0]
+      - ["6",  "SYS",     "power_out",      "top",    1]
+      - ["12", "BATT",    "power_out",      "top",    2]
+      - ["26", "AVL",     "power_out",      "top",    3]
+      - ["27", "PVL",     "power_out",      "top",    4]
+      - ["4",  "PGND",    "power_in",       "bottom", 0]
+      - ["20", "GND",     "power_in",       "bottom", 1]
+      - ["10", "BATSN",   "input",          "bottom", 3]
+      - ["7",  "OTGEN",   "input",          "bottom", 4]
+      - ["28", "STBY",    "input",          "bottom", 5]
+      - ["8",  "DISQBAT", "input",          "left",   0]
+      - ["11", "BATSP",   "input",          "left",   1]
+      - ["19", "SYSA",    "input",          "left",   2]
+      - ["13", "THM",     "input",          "left",   3]
+      - ["21", "INLIM",   "input",          "left",   4]
+      - ["22", "CNFG",    "input",          "left",   5]
+      - ["23", "ISET",    "input",          "left",   6]
+      - ["24", "VSET",    "input",          "left",   7]
+      - ["25", "ITO",     "input",          "left",   8]
+      - ["29", "CSINP",   "input",          "left",   9]
+      - ["30", "CSINN",   "input",          "left",   10]
+      - ["1",  "BST1",    "power_in",       "right",  0]
+      - ["3",  "LX1",     "passive",        "right",  1]
+      - ["5",  "LX2",     "passive",        "right",  2]
+      - ["9",  "BST2",    "power_in",       "right",  3]
+      - ["14", "SCL",     "input",          "right",  4]
+      - ["15", "SDA",     "bidirectional",  "right",  5]
+      - ["16", "STAT",    "open_collector", "right",  6]
+      - ["17", "INOKB",   "open_collector", "right",  7]
+      - ["18", "INTB",    "open_collector", "right",  8]
+
+  "Interface_USB:CH224K":
+    ref_prefix: U
+    width: 20.32
+    pins:
+      - ["1",  "VDD",  "power_in",       "top",    0]
+      - ["11", "GND",  "power_in",       "bottom", 0]
+      - ["9",  "CFG1", "passive",        "left",   0]
+      - ["2",  "CFG2", "passive",        "left",   1]
+      - ["3",  "CFG3", "passive",        "left",   2]
+      - ["8",  "VBUS", "passive",        "top",    1]
+      - ["7",  "CC1",  "bidirectional",  "right",  0]
+      - ["6",  "CC2",  "bidirectional",  "right",  1]
+      - ["4",  "DP",   "bidirectional",  "right",  2]
+      - ["5",  "DM",   "bidirectional",  "right",  3]
+      - ["10", "PG",   "open_collector", "right",  4]
+
+  "Regulator_Switching:AP63203WU":
+    ref_prefix: U
+    width: 15.24
+    pins:
+      - ["3", "VIN", "power_in",  "top",    0]
+      - ["4", "GND", "power_in",  "bottom", 0]
+      - ["2", "EN",  "input",     "left",   0]
+      - ["1", "FB",  "input",     "left",   1]
+      - ["5", "SW",  "power_out", "right",  0]
+      - ["6", "BST", "passive",   "right",  1]
+
+  "Power_Protection:USBLC6-2SC6":
+    ref_prefix: U
+    width: 10.16
+    pins:
+      - ["5", "VBUS", "passive", "top",    0]
+      - ["2", "GND",  "passive", "bottom", 0]
+      - ["1", "I/O1", "passive", "left",   0]
+      - ["6", "I/O1", "passive", "left",   1]
+      - ["3", "I/O2", "passive", "right",  0]
+      - ["4", "I/O2", "passive", "right",  1]
+
+  "Connector:USB_C_Receptacle_GCT_USB4125_6P":
+    ref_prefix: J
+    width: 17.78
+    pins:
+      - ["A9",  "VBUS",   "passive",       "top",    0]
+      - ["B9",  "VBUS",   "passive",       "top",    1]
+      - ["A5",  "CC1",    "bidirectional", "right",  0]
+      - ["B5",  "CC2",    "bidirectional", "right",  1]
+      - ["A12", "GND",    "passive",       "bottom", 0]
+      - ["B12", "GND",    "passive",       "bottom", 1]
+      - ["S1",  "SHIELD", "passive",       "bottom", 2]

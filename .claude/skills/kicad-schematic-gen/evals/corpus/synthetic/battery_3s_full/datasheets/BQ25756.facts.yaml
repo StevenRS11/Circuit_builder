@@ -1,0 +1,54 @@
+mpn: "BQ25756RRVR"
+role: "1-14 cell wide-Vin buck-boost battery charge CONTROLLER (no system power path) — DISQUALIFIED on R2"
+package: "QFN-36-EP (5x6 mm, RRV)"
+datasheet: "BQ25756.pdf"
+notes: >
+  FAILS R2 (HARD GATE — DISQUALIFIED). Title (pg1): "Standalone/I2C Controlled, 1- to
+  14-Cell Bidirectional Buck-Boost Battery Charge Controller." Despite a "Power-Path
+  Manager" register/block, this is NOT an NVDC system power path: pg12 "POWER-PATH
+  MANAGER" defines only discharge loads (IAC_LOAD 16mA on VAC, IBAT_LOAD 16mA on SRN) —
+  not a regulated SYS rail. Pin list (pg4-5) has NO SYS/VSYS pin: power nodes are VAC
+  (input), SW1/SW2 (inductor), and the battery via SRN/SRP/FB. The converter output is
+  the battery; with the battery absent there is no rail held up from VAC for the system.
+  => Disqualified per R2 for the same reason as BQ24650. (The "VAC converter enable...
+  no battery" spec describes converter start, not a system output.)
+  Positives that do not override R2: R3/R4 standalone resistor-set & MCU-FREE — charge
+  current via RICHG on ICHG pin, charge voltage via FB/FBG divider, input current via
+  RILIM on ILIM_HIZ; covers 3S easily (1-14 cell). R5: HAS a TS pin (103AT NTC). R10:
+  STAT1/STAT2 + PG status outputs. No KiCad built-in symbol.
+sourcing:
+  distributor: "LCSC"
+  distributor_pn: "C19272232"
+  stock: 5496
+  price: "$2.63 @1"
+  alt_source: "DigiKey/Mouser stocked, active"
+kicad:
+  lib_id: null
+  footprint: "Package_DFN_QFN:QFN-36 5x6mm (verify exact) — NEEDS CUSTOM SYMBOL"
+  found: false
+pins:
+  - { number: 1,  name: SCL,      type: input,          page: 4 }
+  - { number: 2,  name: SDA,      type: bidirectional,  page: 4 }
+  - { number: 3,  name: INT,      type: open_collector, page: 4 }
+  - { number: 4,  name: STAT1,    type: open_collector, page: 4 }
+  - { number: 5,  name: STAT2,    type: open_collector, page: 4 }
+  - { number: 6,  name: PG,       type: open_collector, page: 4 }
+  - { number: 7,  name: CE,       type: input,          page: 4 }
+  - { number: 8,  name: TS,       type: input,          page: 5 }
+  - { number: 9,  name: ICHG,     type: input,          page: 5 }
+  - { number: 10, name: ILIM_HIZ, type: input,          page: 5 }
+  - { number: 11, name: FBG,      type: input,          page: 5 }
+  - { number: 12, name: FB,       type: input,          page: 5 }
+  - { number: 13, name: SRN,      type: input,          page: 5 }
+  - { number: 14, name: SRP,      type: input,          page: 5 }
+  - { number: 15, name: NC,       type: no_connect,     page: 5 }
+  - { number: 16, name: NC,       type: no_connect,     page: 5 }
+  - { number: 17, name: PGND,     type: power_in,       page: 5 }
+  - { number: 18, name: SW2,      type: passive,        page: 5 }
+  - { number: 19, name: HIDRV2,   type: output,         page: 5 }
+  - { number: 20, name: BTST2,    type: power_in,       page: 5 }
+  - { number: 21, name: LODRV2,   type: output,         page: 5 }
+  - { number: 22, name: PGND,     type: power_in,       page: 5 }
+  - { number: 23, name: DRV_SUP,  type: power_in,       page: 5 }
+  - { number: 24, name: REGN,     type: power_out,      page: 5 }
+pinout_verified: false

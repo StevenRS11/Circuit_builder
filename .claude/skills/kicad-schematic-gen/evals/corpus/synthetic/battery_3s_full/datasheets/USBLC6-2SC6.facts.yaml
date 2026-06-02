@@ -1,0 +1,36 @@
+mpn: USBLC6-2SC6
+manufacturer: STMicroelectronics
+description: Low-capacitance ESD protection array for USB 2.0 / high-speed lines, 2 data lines + VBUS, SOT-23-6
+category: esd_protection_array
+package: SOT-23-6
+sourcing:
+  lcsc_pn: C2827654           # TECH PUBLIC (cheapest in-stock); ST original = C7519
+  lcsc_stock: in_stock
+  lcsc_unit_price_usd: 0.015  # clone ~$0.015; ST original ~$0.078
+  distributor: LCSC
+  lifecycle: active
+  multi_source: true          # ST + many second-sources (UMW, FUXINSEMI, HXY, etc.)
+electrical:
+  vrwm_v: 5.25                # working voltage per line
+  channels: 2                # 2 protected data lines (D+/D-) + Vbus rail clamp
+  capacitance_pf: 3.5        # low-cap, USB2.0 compatible
+  clamp_vesd_kv: 8           # contact / 15kV air (IEC 61000-4-2)
+kicad:
+  lib_id: Power_Protection:USBLC6-2SC6
+  footprint: Package_TO_SOT_SMD:SOT-23-6
+  footprint_exists: true
+pins:                         # from KiCad Power_Protection:USBLC6-2SC6 (authoritative standard part)
+  - { number: "1", name: "I/O1", type: "passive", page: 1 }
+  - { number: "2", name: "GND",  type: "passive", page: 1 }
+  - { number: "3", name: "I/O2", type: "passive", page: 1 }
+  - { number: "4", name: "I/O2", type: "passive", page: 1 }
+  - { number: "5", name: "VBUS", type: "passive", page: 1 }
+  - { number: "6", name: "I/O1", type: "passive", page: 1 }
+pinout_verified: true
+notes: >
+  USB-C ESD protection (item 5a). Protects the two USB 2.0 data lines plus the
+  VBUS rail. SOT-23-6 variant (-2SC6) is the common LCSC-stocked one and has a
+  KiCad symbol; the -2P6 (SOT-666) variant also exists in KiCad if a smaller
+  package is wanted. For PD CC1/CC2 lines, add a per-line low-cap TVS (e.g.
+  ESD9B-class SOD-923 or an SMF unidirectional) since USBLC6 only covers 2
+  data lines + VBUS. pins: populate the 6-pin map from the ST datasheet before wiring.

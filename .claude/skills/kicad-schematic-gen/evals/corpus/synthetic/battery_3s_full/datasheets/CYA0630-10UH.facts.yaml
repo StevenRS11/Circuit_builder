@@ -1,0 +1,31 @@
+mpn: CYA0630-10UH
+manufacturer: SHOU HAN
+description: 10uH shielded SMD power inductor, 5.5A Isat, 71mOhm DCR, 7.2x6.6mm
+category: power_inductor
+package: SMD 7.2x6.6mm (6030-class shielded)
+sourcing:
+  lcsc_pn: C5189958
+  lcsc_stock: 74615
+  lcsc_unit_price_usd: 0.1563   # qty 5+
+  distributor: LCSC
+  lifecycle: active
+  multi_source: false
+electrical:
+  inductance_uh: 10
+  isat_a: 5.5
+  irms_a: 4.0
+  dcr_ohm: 0.071
+  shielded: true
+kicad:
+  lib_id: null                  # passive - use Device:L symbol
+  symbol: Device:L
+  footprint: Inductor_SMD:L_7.3x7.3_H3.5   # nearest generic land in KiCad (no exact 7.2x6.6); verify pads
+  footprint_exists: true        # L_7.3x7.3_H3.5 exists; land is slightly larger than the 7.2x6.6 body - OK / author custom land if tight
+pinout_verified: false
+notes: >
+  BQ24650 synchronous-buck charger inductor. Sized for Vin=15V, Vout=12.2V,
+  Iout=1.5A, fsw=600kHz (BQ24650 default). L = Vout*(Vin-Vout)/(Vin*dIL*fsw)
+  with dIL=30%*1.5A=0.45A -> L = 12.2*2.8/(15*0.45*600e3) = ~8.4uH -> pick 10uH.
+  Isat 5.5A >> Ipk (~1.7A) -> large margin. DCR 71mOhm -> ~0.16W at 1.5A, fine.
+  Footprint: KiCad has no exact SHOU HAN land; use a generic 7.3x6.6 inductor
+  pad or author a custom land from the LCSC drawing at layout time.

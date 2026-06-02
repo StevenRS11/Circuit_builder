@@ -1,0 +1,29 @@
+# AOZ1280CI.facts.yaml — intrinsic per-part facts. No per-design connectivity.
+# CANDIDATE EVALUATED BUT NOT RECOMMENDED: Iout 1.2A < R9's 1.5A target (no headroom);
+# also non-synchronous (external Schottky needed). Carded for traceability.
+mpn: "AOZ1280CI"
+role: "5V logic buck regulator (rejected candidate)"
+package: "SOT-23-6"
+datasheet: "AOZ1280CI.pdf"         # relative to the datasheets folder; Rev.1.1, Aug 2011
+sourcing: { distributor: "LCSC", distributor_pn: "C41240", stock: 23818, price: "$0.32" }
+kicad:   { lib_id: "Regulator_Switching:AOZ1280CI", footprint: "Package_TO_SOT_SMD:SOT-23-6", found: true }
+electrical:
+  vin_min: "3.0 V"
+  vin_max: "26 V"
+  iout_max: "1.2 A"                 # INSUFFICIENT for 1.5A target
+  fsw: "1.5 MHz"
+  topology: "non-synchronous (needs external Schottky catch diode)"
+  external_inductor: true
+  inductor_typical: "4.7-10 uH"
+  output: "adjustable"
+  vref: "0.8 V"
+  fb_resistors_for_5v0: "Vout = 0.8*(1+R1/R2); R1=52.3k, R2=10k -> 5.02V"
+  pg_pin: false
+pins:                              # number/name/type ONLY — from KiCad symbol / datasheet
+  - { number: "1", name: "BST", type: "input",     page: 1 }
+  - { number: "2", name: "GND", type: "power_in",  page: 1 }
+  - { number: "3", name: "FB",  type: "input",     page: 1 }
+  - { number: "4", name: "EN",  type: "input",     page: 1 }
+  - { number: "5", name: "VIN", type: "power_in",  page: 1 }
+  - { number: "6", name: "LX",  type: "power_out", page: 1 }
+pinout_verified: false

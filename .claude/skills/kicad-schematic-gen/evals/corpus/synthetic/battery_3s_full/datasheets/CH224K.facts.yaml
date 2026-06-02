@@ -1,0 +1,26 @@
+mpn: "CH224K"
+role: "USB-C PD sink controller"
+package: "SSOP-10 (ESSOP-10, 1EP, 1.0mm pitch)"   # actual; LCSC lists ESSOP-10-150mil
+datasheet: "CH224K.pdf"
+sourcing: { distributor: "LCSC", distributor_pn: "C970725", stock: 6654, price: "$0.29" }
+kicad: { lib_id: "Interface_USB:CH224K", footprint: "Package_SO:SSOP-10-1EP_3.9x4.9mm_P1mm_EP2.1x3.3mm", found: true }
+# Pinout from KiCad Interface_USB:CH224K (10 signal pins + EP/GND). Note KiCad symbol
+# enumerates an 11th pin (GND) for the exposed pad. Names match WCH datasheet.
+pins:
+  - { number: "1",  name: "VDD",  type: "power_in",        page: 2 }   # 3.3V internal LDO output / supply, decouple 1uF
+  - { number: "2",  name: "CFG2", type: "passive",         page: 5 }   # voltage-select logic level (resistor strap mode)
+  - { number: "3",  name: "CFG3", type: "passive",         page: 5 }   # voltage-select logic level
+  - { number: "4",  name: "DP",   type: "bidirectional",   page: 2 }   # USB D+ (BC1.2 / legacy fast-charge handshake)
+  - { number: "5",  name: "DM",   type: "bidirectional",   page: 2 }   # USB D-
+  - { number: "6",  name: "CC2",  type: "bidirectional",   page: 2 }   # Type-C CC2
+  - { number: "7",  name: "CC1",  type: "bidirectional",   page: 2 }   # Type-C CC1
+  - { number: "8",  name: "VBUS", type: "passive",         page: 2 }   # VBUS sense input
+  - { number: "9",  name: "CFG1", type: "passive",         page: 5 }   # voltage-select; single-resistor mode resistor here
+  - { number: "10", name: "PG",   type: "open_collector",  page: 5 }   # Power-Good open-drain (active when requested V negotiated)
+  - { number: "11", name: "GND",  type: "power_in",        page: 2 }   # GND / exposed pad
+pinout_verified: true
+# 15V selection: single-resistor mode -> 56k from CFG1 to GND requests 15V.
+#   (logic-table mode: CFG1=0, CFG2=1, CFG3=1). 6.8k=9V, 24k=12V, 56k=15V, NC=20V.
+# VBUS gate: NONE. CH224K has only a PG (power-good) open-drain flag; no gate-driver
+#   output to enable/block VBUS. Reverse-blocking (R7) requires an EXTERNAL FET; PG can
+#   be used to enable a downstream load switch but CH224K does not drive it directly.

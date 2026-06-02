@@ -1,0 +1,60 @@
+mpn: "BQ25703ARSNR"
+role: "1s-4s NVDC buck-boost battery charge controller with integrated system power path (VSYS)"
+package: "VQFN-32-EP (4x4 mm, WQFN RSN), 0.4mm pitch"
+datasheet: "BQ25703A.pdf"
+notes: >
+  PASSES R2 (HARD GATE): NVDC power path. Datasheet pg1 features "NVDC power path
+  management" + "Instant-on with no battery or depleted battery"; functional block
+  shows VSYS held from VBUS through buck-boost (Q1-Q4) with BATDRV controlling the
+  battery FET. System rail stays alive battery-absent. Functionally the same part
+  family as BQ25713 (BQ25713 is "pin-to-pin and software compatible to BQ25703A").
+  R3/R4: charge V and I set via I2C registers only — not resistor-set, not MCU-free.
+  Cell count 1-4s selectable on CELL_BATPRESZ pin. R5: NO TS/NTC pin (off-chip NTC
+  needed). R10: CHRG_OK pin + I2C status. External NFETs required. No KiCad symbol.
+  Slightly pricier / higher stock than BQ25713; BQ25713 is the newer pin-compatible
+  preferred choice. Pin 5 is EN_OTG here (vs OTG/VAP on BQ25713).
+sourcing:
+  distributor: "LCSC"
+  distributor_pn: "C188229"
+  stock: 6269
+  price: "$1.42 @1 (down to $1.12 @1k)"
+  alt_source: "DigiKey/Mouser stocked"
+kicad:
+  lib_id: null
+  footprint: "Package_DFN_QFN:QFN-32-1EP_4x4mm_P0.4mm_EP2.45x2.45mm (verify EP) — NEEDS CUSTOM SYMBOL"
+  found: false
+pins:
+  - { number: 1,  name: VBUS,          type: power_in,  page: 6 }
+  - { number: 2,  name: ACN,           type: passive,   page: 6 }
+  - { number: 3,  name: ACP,           type: passive,   page: 6 }
+  - { number: 4,  name: CHRG_OK,       type: open_collector, page: 6 }
+  - { number: 5,  name: EN_OTG,        type: input,     page: 6 }
+  - { number: 6,  name: ILIM_HIZ,      type: input,     page: 6 }
+  - { number: 7,  name: VDDA,          type: power_out, page: 6 }
+  - { number: 8,  name: IADPT,         type: output,    page: 6 }
+  - { number: 9,  name: IBAT,          type: output,    page: 6 }
+  - { number: 10, name: PSYS,          type: output,    page: 6 }
+  - { number: 11, name: PROCHOT,       type: open_collector, page: 6 }
+  - { number: 12, name: SDA,           type: bidirectional, page: 6 }
+  - { number: 13, name: SCL,           type: input,     page: 6 }
+  - { number: 14, name: CMPIN,         type: input,     page: 6 }
+  - { number: 15, name: CMPOUT,        type: open_collector, page: 6 }
+  - { number: 16, name: COMP1,         type: passive,   page: 6 }
+  - { number: 17, name: COMP2,         type: passive,   page: 6 }
+  - { number: 18, name: CELL_BATPRESZ, type: input,     page: 6 }
+  - { number: 19, name: SRN,           type: input,     page: 6 }
+  - { number: 20, name: SRP,           type: input,     page: 6 }
+  - { number: 21, name: BATDRV,        type: output,    page: 6 }
+  - { number: 22, name: VSYS,          type: power_out, page: 6 }
+  - { number: 23, name: SW2,           type: passive,   page: 6 }
+  - { number: 24, name: HIDRV2,        type: output,    page: 6 }
+  - { number: 25, name: BTST2,         type: power_in,  page: 6 }
+  - { number: 26, name: LODRV2,        type: output,    page: 6 }
+  - { number: 27, name: PGND,          type: power_in,  page: 6 }
+  - { number: 28, name: REGN,          type: power_out, page: 6 }
+  - { number: 29, name: LODRV1,        type: output,    page: 6 }
+  - { number: 30, name: BTST1,         type: power_in,  page: 6 }
+  - { number: 31, name: HIDRV1,        type: output,    page: 6 }
+  - { number: 32, name: SW1,           type: passive,   page: 6 }
+  - { number: 33, name: PAD,           type: power_in,  page: 6 }
+pinout_verified: false

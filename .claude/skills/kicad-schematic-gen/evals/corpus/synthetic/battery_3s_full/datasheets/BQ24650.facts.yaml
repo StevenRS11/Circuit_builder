@@ -1,0 +1,63 @@
+mpn: "BQ24650RVAR"
+role: "Path B 3S charge CONTROLLER (resistor-set, MCU-free). Charges battery only; R2 system-power-path is handled SEPARATELY by an external ORing MUX (VBUS||VBAT -> SYS). In Path B this part is the CONFIRMED charger (R3/R4/R5/R10), not the R2 enabler."
+package: "VQFN-16-EP (3.5x3.5 mm, RVA), 0.5mm pitch"
+datasheet: "BQ24650.pdf"
+notes: >
+  PATH B CHARGER — CONFIRMED for R3/R4/R5/R10 (Path B separates the charger from the
+  R2 system-power-path, which is met by an external ORing MUX, so the BQ24650's lack
+  of an internal VSYS pin is NOT disqualifying in this architecture). Verified against
+  cached datasheet (TI SLUSA75B, Jan 2020):
+  - R3 (3S float = 12.2V, resistor-set): pg13 sec 8.3.1 Eq.1 — VFB regulated to 2.1 V,
+    VBAT = 2.1 * (1 + R_top/R_bot). For 12.2 V: R_top/R_bot = (12.2/2.1) - 1 = 4.81
+    (e.g. R_top=481k, R_bot=100k -> 12.20 V; or 200k/41.2k). pg7 EC table: VFB ref 2.1 V.
+  - R4 (~1.5A charge, sense-R, MCU-free): pg14 sec 8.3.3 Eq.3 — full-scale V(SRP-SRN)=40 mV
+    (pg8 EC table VIREG_CHG=40 mV). ICHG = 40mV / RSR. Datasheet worked example: 20 mOhm -> 2 A.
+    For 1.5 A: RSR = 40mV/1.5A = 26.7 mOhm -> use 27 mOhm (1.48 A) or 25 mOhm (1.6 A).
+    Termination at 1/10 ICHG; precharge 4 mV / RSR.
+  - R5 (temp-qualified charge): pg5 pin desc + pg8 EC table — TS pin window comparator from
+    a VREF->TS->GND divider with a 103AT NTC. Thresholds (% of VREF=3.3V): VLTF(cold)=73.5%,
+    VHTF(hot)=47.5%, VTCO(cutoff)=45%. Out-of-window suspends charge.
+  - R10 (status, MCU-free): pg5 — STAT1/STAT2 open-drain outputs (charging / done / fault;
+    both HIGH = fault). VREF (3.3V) is the pull-up rail.
+  - VBUS 15V input: in range. VCC abs-max 28V, recommended op typically <26-28V; 15V OK.
+    NOTE caveat: device enters SLEEP when VCC < VSRN(battery), and needs VCC > ~100mV above
+    battery to charge — fine at 15V vs 12.6V max pack.
+  - MPPSET handling (disable solar MPPT for a FIXED 15V adapter): pg5/pg16 — MPPSET regulates
+    to 1.2V; pull MPPSET ABOVE 1.2V (set the divider so V(MPPSET) > 1.2V at the lowest expected
+    VBUS) to keep the input-voltage-regulation/MPPT loop OUT of the picture for a stiff adapter,
+    so charge runs at full programmed current. Charge enabled when MPPSET>175mV; <75mV disables
+    charge. For a 15V stiff supply set e.g. MPPSET divider for ~1.6V at 15V (well above 1.2V).
+  EXTERNAL POWER COMPONENTS REQUIRED (synchronous buck CONTROLLER — not integrated FETs):
+    high-side N-FET (HIDRV) + low-side N-FET (LODRV) [or dual-N-FET], power inductor on PH,
+    bootstrap cap PH->BTST (0.1uF) + REGN->BTST Schottky, input cap on VCC, output cap on battery,
+    RSR sense resistor (SRP/SRN) + 0.1uF differential/CM filter caps, REGN cap, VREF 1uF cap,
+    VFB divider (R3 voltage set), MPPSET divider, TS NTC+divider, STAT1/STAT2 pull-ups to VREF.
+sourcing:
+  distributor: "LCSC"
+  distributor_pn: "C53712"
+  stock: 2945
+  price: "$1.13 @1"
+  alt_source: "DigiKey/Mouser stocked, active"
+kicad:
+  lib_id: "Battery_Management:BQ24650"
+  footprint: "Package_DFN_QFN:Texas_RVA_VQFN-16-1EP_3.5x3.5mm_P0.5mm_EP2.14x2.14mm_ThermalVias"
+  found: true
+pins:
+  - { number: 1,  name: VCC,      type: power_in,       page: 1 }
+  - { number: 2,  name: MPPSET,   type: input,          page: 1 }
+  - { number: 3,  name: STAT1,    type: open_collector, page: 1 }
+  - { number: 4,  name: TS,       type: input,          page: 1 }
+  - { number: 5,  name: STAT2,    type: open_collector, page: 1 }
+  - { number: 6,  name: VREF,     type: power_out,      page: 1 }
+  - { number: 7,  name: TERM_EN,  type: input,          page: 1 }
+  - { number: 8,  name: VFB,      type: input,          page: 1 }
+  - { number: 9,  name: SRN,      type: input,          page: 1 }
+  - { number: 10, name: SRP,      type: input,          page: 1 }
+  - { number: 11, name: GND,      type: power_in,       page: 1 }
+  - { number: 12, name: REGN,     type: power_out,      page: 1 }
+  - { number: 13, name: LODRV,    type: output,         page: 1 }
+  - { number: 14, name: PH,       type: passive,        page: 1 }
+  - { number: 15, name: HIDRV,    type: output,         page: 1 }
+  - { number: 16, name: BTST,     type: power_in,       page: 1 }
+  - { number: 17, name: PAD_GND,  type: power_in,       page: 1 }
+pinout_verified: true

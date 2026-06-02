@@ -1,0 +1,15 @@
+# Traceability — frozen NEGATIVE case (the gate MUST fail on R2).
+# R2 is [CRITICAL] (system power path) and is mapped to U1 = BQ24650, which has no
+# internal VSYS / system power path. No honest datasheet evidence can be cited, so the
+# evidence field is left empty — exactly the structural signature of the mis-selection.
+# check_requirements must flag `critical_no_evidence` on R2 and FAIL.
+requirements:
+  R1:
+    satisfied_by: [U2]
+    evidence: "CH224K (U2) is a USB-C PD sink; a single CFG strap requests 15 V. Datasheet single-resistor table."
+  R2:
+    satisfied_by: [U1]      # BQ24650 — selected, but cannot satisfy a system power path
+    evidence: ""            # no citable evidence: BQ24650 charges the battery only, no VSYS pin
+  R3:
+    satisfied_by: [U1, R1]
+    evidence: "BQ24650 (U1) charge current set by sense resistor R1 (SRP/SRN), MCU-free. Datasheet ICHG = 40mV / Rsns."

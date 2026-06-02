@@ -1,0 +1,41 @@
+# Requirements traceability — battery_3s (Path A', MAX77961)
+requirements:
+  R1:
+    satisfied_by: [U1, J1, R1]
+    evidence: "CH224K (U1) PD sink on USB-C (J1); 56k strap (R1) on CFG1 requests 15V. PG asserts only when 15V present -> no false 5V fallback. CH224K datasheet single-resistor table."
+  R2:
+    satisfied_by: [U2]
+    evidence: "[CRITICAL] MAX77961 (U2) integral Smart Power Selector buck-boost regulates SYS from CHGIN with battery absent/dead, QBAT off. Answer-blind verified: 'system instant on with a dead battery' (DS p.29); power state 0x04 'DC-DC supplies power to SYS... Battery disconnected (QBAT off)' (p.30); reset-default CHARGE mode, autonomous (p.31/25). No I2C needed."
+  R3:
+    satisfied_by: [U2, R4]
+    evidence: "VSET strap R4=178k -> 12.15V (4.05V/cell), closest to the 12.2V longevity target (no exact 12.2V code; 0.15V steps), below pack BMS OVP. MAX77961 DS Table 8 (3S column)."
+  R4:
+    satisfied_by: [U2, R5]
+    evidence: "ISET strap R5=54.9k -> 1.5A fast-charge, resistor-set, MCU-free. MAX77961 DS Table 6. Cell count CNFG R3=8.66k -> 3S (Table 1). INLIM R6=14k -> 3A input limit (Table 5)."
+  R5:
+    satisfied_by: [U2, RT1, R8]
+    evidence: "On-board 10k NTC (RT1) on THM via R8 bias to AVL; charger suspends on hot/cold (DS Table 3 window, ~0-50C with 103AT). Autonomous gets hot/cold suspend (4-zone JEITA needs I2C)."
+  R6:
+    satisfied_by: [Q1, J2]
+    evidence: "AO4407A P-FET (Q1) reverse-polarity block on battery main (J2), with C16 gate soft-start for inrush limiting; D7 (SS34) BATT->SYS hot-insert diverter per MAX77961 3S app (DS Fig.15)."
+  R7:
+    satisfied_by: [U2, U1, U6]
+    evidence: "Back-feed protection of the CH224K (U1) PD-sense node is provided by the MAX77961 (U2) CHGIN 'true load disconnect' (DS p1) with OTG disabled — OTGEN tied low, autonomous/no I2C, so reverse-buck can never enable. With no valid input, CHGIN is isolated from SYS/BATT, so the battery cannot back-feed VBUS/the CH224K sense or the USB-C port. The external reverse-block FET (Q2) was REMOVED: as wired (source-referenced gate divider) it acted as a load switch, not a one-way valve, so it added cost + false confidence without independent blocking. USBLC6 (U6) clamps VBUS/CC ESD. BENCH GATE before fab: on battery only (no USB), USB-C VBUS must read ~0V (confirms the load disconnect)."
+  R8:
+    satisfied_by: [J4, U2]
+    evidence: "Unregulated SYS rail (MAX77961 SYS pin, 9-15V, buck-boost) brought out at J4 for the DRV8825 VMOT. VSYSMIN 9.225V floor (3S default)."
+  R9:
+    satisfied_by: [U3, L2, R17, R18, J5]
+    evidence: "AP63200WU-7 (U3) sync buck, 4.7uH (L2), FB R17=52.3k/R18=10k -> 5.0V; 2A capability > 1.5A; +5V at J5. Powered from the switched VSTEPPER bus."
+  R10:
+    satisfied_by: [J6, U2]
+    evidence: "Status header J6 exposes MAX77961 STAT (CHG, open-drain) + INOKB (input-OK) to the host. DS pin descriptions, pulled up to PVL (R10/R11)."
+  R11:
+    satisfied_by: [J7, U2, Q8, Q6, Q7, R23]
+    evidence: "[CRITICAL] External master switch (J7) drives SYSTEM_EN. OFF -> Q8 off -> DISQBAT pulled high (R23 to BATT) -> MAX77961 FACTORY SHIP MODE, ISHDN 2.3uA typ / 5uA max (answer-blind verified, DS p.39 + EC). AND SYSTEM_EN low -> Q6/Q7 load switch off -> both outputs cut even when USB plugged. Storage standby ~2.3-5uA << 100uA budget."
+  R12:
+    satisfied_by: [EXTERNAL]
+    evidence: "Cell balancing + pack protection handled entirely by the pack BMS (EXTERNAL). The on-board JST-XH balance tap (J3) + per-tap ESD (D4/D5/D6) were REMOVED: the B1/B2 taps had no on-board destination (dead-ended at ESD diodes, nothing monitors/balances them) and B+/B- merely duplicated the main pack connector J2 — functionally inert. External balancing, if ever needed, is done by plugging the pack's own balance lead into a hobby charger, not through the board. Per spec section 4 (revised)."
+  R13:
+    satisfied_by: [U2, Q9, R24, R25]
+    evidence: "Charge-while-off override: Q9 (AO3400A) parallels Q8 on DISQBAT, gated by VIN_DET — a /2 divider (R24 100k from VBUS_USB, R25 100k to GND). USB present -> Q9 gate high (Vgs ~7.5V @15V, < AO3400A ±12V limit) -> DISQBAT pulled low -> MAX77961 QBAT enabled -> charges regardless of master switch. Outputs stay off (Q6 gated only by SYSTEM_EN). No USB -> VIN_DET=0 -> Q9 off -> DISQBAT reverts to switch/R23 -> R11 shelf ship-mode (2.3uA) preserved. DISQBAT low = Q8(switch) OR Q9(input)."

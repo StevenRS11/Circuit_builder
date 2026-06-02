@@ -1,0 +1,16 @@
+# Expected result — NEGATIVE case: the gate must bite.
+name: critical_bq24650
+kind: negative
+grader: check_requirements
+inputs: { spec: spec.md, traceability: traceability.yaml, bom_flat: bom_flat.md }
+expect:
+  passed: false                       # check_requirements MUST fail
+  must_include_check: critical_no_evidence
+  on_requirement: R2
+notes: >
+  Frozen reproduction of the BQ24650 mis-selection class. A [CRITICAL]
+  system-power-path requirement (R2) is mapped to BQ24650 (U1), which has no internal
+  system power path, so no honest datasheet evidence can be cited. The Stage-3/7
+  coverage gate (check_requirements) must FAIL with `critical_no_evidence` on R2.
+  This is negative-space testing: it proves the gate actually bites, which no positive
+  fixture can demonstrate. If this case ever PASSES, the [CRITICAL] gate has regressed.

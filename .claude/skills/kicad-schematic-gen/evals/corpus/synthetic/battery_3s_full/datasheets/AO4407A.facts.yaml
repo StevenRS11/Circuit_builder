@@ -1,0 +1,57 @@
+# Fact card — intrinsic part facts only (no per-design connectivity)
+mpn: AO4407A
+manufacturer: Alpha & Omega Semiconductor (AOS)
+description: "-30V -12A P-channel MOSFET, SO-8, very low Rds(on)"
+role: "Battery reverse-polarity P-FET (R6) + USB-C VBUS blocking FET (R7) — RECOMMENDED for the 3A path"
+
+sourcing:
+  primary:
+    distributor: LCSC
+    distributor_pn: C16072        # AOS brand
+    stock: "21150"
+    price_usd_1pc: 0.18           # approx; SO-8 P-FET
+  alternates:
+    - distributor: LCSC
+      distributor_pn: C2841482    # UMW brand, 30815 stock
+    - distributor: LCSC
+      distributor_pn: C5155211    # JSMSEMI brand, 16980 stock
+    - distributor: DigiKey
+      distributor_pn: "AO4407A (785- family)"
+  multi_source: true              # AOS, UMW, JSMSEMI, KEXIN, ElecSuper
+  lifecycle: active
+
+kicad:
+  symbol_specific: null            # no dedicated Transistor_FET:AO4407A symbol in built-in libs
+  lib_id: "Custom:AO4407A"  # custom 8-pin SO-8 symbol (generic 3-pin wont map SO-8 pads)
+  footprint: "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"   # standard SO-8 / SOIC-8
+  footprint_exists: true
+  found: true                      # generic symbol + standard footprint both present
+
+specs:
+  channel: P
+  vds_v: -30           # BVDSS -30V (PASS R6 2x margin over 12.6V; PASS R7 over 15V VBUS)
+  id_cont_a: -12       # continuous, far above the 3A path -> negligible self-heating
+  rds_on_mohm: 17      # < 17 mOhm @ VGS=-10V (< 11 mOhm @ -20V). At 3A: ~0.15W -> few tens of mV drop (PASS R6 drop req)
+  vgs_th_v: [-1.7, -2.3, -3.0]   # min/typ/max
+  vgs_max_v: 25        # +-25V gate rating -> comfortable headroom for 3S gate drive (unlike AO3401A/SI2301)
+  # OFF-state leakage (relevant to R11 budget if used as the gated load switch)
+  idss_ua: -1          # Zero-gate drain leakage @ VDS=-30V, 25C (-5uA @ TJ=55C)  [datasheet Electrical Characteristics table]
+  igss_na: 100         # gate-body leakage, +-100nA
+  package: SO-8 (SOIC-8)
+
+pinout_verified: true   # standard AO4407 SO-8 pinout: S(1,2,3) G(4) D(5,6,7,8)
+pins:                     # SO-8 power-MOSFET standard pinout (source x3, gate, drain x4)
+  - {number: "1", name: "S", type: "passive"}
+  - {number: "2", name: "S", type: "passive"}
+  - {number: "3", name: "S", type: "passive"}
+  - {number: "4", name: "G", type: "input"}
+  - {number: "5", name: "D", type: "passive"}
+  - {number: "6", name: "D", type: "passive"}
+  - {number: "7", name: "D", type: "passive"}
+  - {number: "8", name: "D", type: "passive"}
+
+datasheet:
+  file: AO4407A.pdf
+  source_url: "https://www.aosmd.com/res/datasheets/AO4407A.pdf"
+  rev: "Rev.11.1 March 2024"
+  leakage_page: "Electrical Characteristics (IDSS / IGSS rows)"

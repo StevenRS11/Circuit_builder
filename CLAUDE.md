@@ -36,6 +36,7 @@ The project also includes a `.skill` file (`kicad-schematic-gen.skill`) which bu
 - `.claude/skills/kicad-schematic-gen/references/design_review.md` — Stage 7 structural design-review checklist (Power/Signal Integrity, Connectivity, Component Correctness, Footprint & BOM); the checklist the Stage 7 review subagent walks.
 - `.claude/skills/kicad-schematic-gen/templates/` — Stage document templates (spec, candidates, BOM, implementation reference, design analysis YAML, analysis report, netlist YAML w/ net-class schema, design review checklist).
 - `.claude/skills/kicad-schematic-gen/tests/` — 409 pytest tests across 15 test files. Includes `test_generate_from_data.py` (engine unit tests) and `test_integration_battery3s.py` (end-to-end + byte-stable golden snapshot, with the J3-short regression guard). Golden + frozen inputs live in `tests/fixtures/battery_3s/`; refresh the golden with `UPDATE_GOLDEN=1`.
+- `.claude/skills/kicad-schematic-gen/evals/` — **Skill-level eval suite** measuring the model half the unit tests can't: does Claude trigger the skill, follow the 8 gated stages, honor subagent verdicts, author good designs. Honest tiers by what's verifiable today (no board is built yet, so judgment-quality is deferred). **Tier 0** full-pipeline regression: each `corpus/synthetic/*` case (e.g. `battery_3s_full`, the current-skill regeneration) regenerates byte-deterministically and passes every verifier via `graders/run_all_verifiers.py`. **Tier 0b** `[CRITICAL]` *negative* regression (`regression/critical_bq24650/`): the gate must bite. **Tier 1** triggering corpora + SKILL.md description drift guard. **Tier 2** gate-adherence is a manual prompt-set + rubric (`behavioral/`, model-in-loop). **Tier 3** judgment-quality is deferred to the first **validated** anchor (built + bench-verified NAU7802 board) — see `evals/README.md`. 8 deterministic tests (Tiers 0/0b/1) in `test_evals.py`; full skill suite is 417. *Fixture provenance matters:* `synthetic/` cases are regression/process anchors only, never correctness ground truth.
 - `kicad-schematic-gen.skill` — Original packaged skill archive (binary zip).
 
 ## Running
@@ -103,6 +104,13 @@ python .claude/skills/kicad-schematic-gen/scripts/analyze_pcb_si.py <file.kicad_
 
 # Run tests
 python -m pytest .claude/skills/kicad-schematic-gen/tests/ -v
+
+# Run the skill-level eval suite (Tiers 0/0b/1 — deterministic)
+python -m pytest .claude/skills/kicad-schematic-gen/evals/ -v
+
+# Grade one eval corpus case with every verifier
+python .claude/skills/kicad-schematic-gen/evals/graders/run_all_verifiers.py <case_dir>
+python .claude/skills/kicad-schematic-gen/evals/graders/run_all_verifiers.py <case_dir> --update-golden
 ```
 
 ## Architecture

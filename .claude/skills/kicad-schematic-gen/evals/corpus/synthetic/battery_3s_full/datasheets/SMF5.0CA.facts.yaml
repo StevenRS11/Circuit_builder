@@ -1,0 +1,44 @@
+mpn: SMF5.0CA
+manufacturer: Littelfuse (also MDD, SEMIWARE, FUXINSEMI second-sources)
+description: Bidirectional TVS diode, 5.0V standoff, 200W (8/20us), SOD-123FL
+category: tvs_diode
+package: SOD-123FL
+sourcing:
+  lcsc_pn: C364279            # MDD; Littelfuse original = C1851363, FUXINSEMI = C908214
+  lcsc_stock: in_stock
+  lcsc_unit_price_usd: 0.01   # ~$0.01-0.05 depending on brand
+  distributor: LCSC
+  lifecycle: active
+  multi_source: true
+electrical:
+  vrwm_v: 5.0                # reverse standoff (this value); family scales: 12CA=12V, 15CA=15V
+  vbr_v: 6.4                 # breakdown min
+  directionality: bidirectional
+  ppk_w: 200                 # peak pulse power 8/20us
+  ipp_a: 21.7
+kicad:
+  lib_id: null               # generic TVS - use Device:D_TVS
+  symbol: Device:D_TVS
+  footprint: Diode_SMD:D_SOD-123F
+  footprint_exists: true
+pins:
+  - number: "1"
+    name: A1
+    type: passive
+  - number: "2"
+    name: A2
+    type: passive
+pinout_verified: false
+notes: >
+  Item 5b - balance-tap ESD on the JST-XH 3S balance connector, AND a candidate
+  for VBUS over-voltage clamp (item 5a). Cell-tap voltages referenced to B- are
+  ~4.2V (B1), ~8.4V (B2), ~12.6V (B+), so a single standoff cannot cover all
+  taps - size the SMF per tap so Vrwm sits just above the tap's max voltage:
+    B1 tap  -> SMF5.0CA  (5.0V standoff)
+    B2 tap  -> SMF12CA   (12V standoff)  [LCSC SMF12CA, same family/footprint]
+    B+ tap  -> SMF15CA   (15V standoff)  [LCSC SMF15CA, same family/footprint]
+  All share SOD-123FL footprint and Device:D_TVS symbol. SMF series is the cheap,
+  ubiquitous bidirectional choice. For VBUS (15V from USB-C PD), a unidirectional
+  SMF15A (15V standoff, ~24V clamp) on VBUS-to-GND is appropriate; keep it
+  separate from the USBLC6 (which only clamps data+VBUS to ~9V and is data-line
+  oriented). Card the per-tap SMFxxCA values into the BOM at Stage 3.

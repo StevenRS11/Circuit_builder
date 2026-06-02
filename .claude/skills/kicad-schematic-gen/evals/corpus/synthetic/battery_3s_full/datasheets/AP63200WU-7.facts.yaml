@@ -1,0 +1,33 @@
+# AP63200WU-7.facts.yaml — intrinsic per-part facts. No per-design connectivity.
+mpn: "AP63200WU-7"
+role: "5V logic buck regulator"
+package: "TSOT-23-6"
+datasheet: "AP63200WU-7.pdf"        # relative to the datasheets folder; DS41326 Rev.3-2, Nov 2024
+sourcing: { distributor: "LCSC", distributor_pn: "C2071868", stock: 25035, price: "$0.16" }
+kicad:   { lib_id: "Regulator_Switching:AP63203WU", footprint: "Package_TO_SOT_SMD:TSOT-23-6", found: true }
+# NOTE: KiCad has no AP63200WU symbol; the AP63203WU symbol (same AP6320x family, identical
+# pinout/footprint) is the correct symbol. AP63203 is the FIXED-3.3V FB-internal variant, so for
+# the adjustable AP63200 the FB pin (1) takes an external divider — wire it as adjustable.
+electrical:
+  vin_min: "3.8 V"
+  vin_max: "32 V"                   # recommended operating; ample headroom over 15V input + abs-max margin
+  iout_max: "2.0 A continuous"
+  fsw: "500 kHz"                    # AP63200 (PFM-capable); AP63203/05 are 1.1 MHz
+  topology: "synchronous (integrated 125mOhm HS + 68mOhm LS FET)"
+  external_inductor: true
+  inductor_typical: "4.7 uH"       # datasheet typical-app for 5V out (Fig.1)
+  output: "adjustable"
+  vref: "0.8 V +/-1%"
+  fb_resistors_for_5v0: "Vout = 0.8*(1+R1/R2); R1=52.3k (top), R2=10k (bottom) -> 5.02V"
+  bst_cap: "100 nF SW->BST"
+  cin_typical: "10 uF"
+  cout_typical: "2x 22 uF"
+  pg_pin: false                    # no power-good pin; 5V-rail indicator LED must be a simple rail tap
+pins:                              # number/name/type ONLY (intrinsic) — datasheet p.2 Pin Descriptions
+  - { number: "1", name: "FB",  type: "input",     page: 2 }
+  - { number: "2", name: "EN",  type: "input",     page: 2 }
+  - { number: "3", name: "VIN", type: "power_in",  page: 2 }
+  - { number: "4", name: "GND", type: "power_in",  page: 2 }
+  - { number: "5", name: "SW",  type: "power_out", page: 2 }
+  - { number: "6", name: "BST", type: "passive",   page: 2 }
+pinout_verified: true             # flip to true once Stage 4 re-derivation agrees

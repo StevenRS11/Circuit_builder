@@ -1,0 +1,56 @@
+# Fact card — intrinsic part facts only (no per-design connectivity)
+mpn: "LTC4357CMS8#TRPBF"
+manufacturer: Analog Devices (Linear Technology)
+description: "Positive high-voltage ideal-diode controller, 9V-80V, drives external N-channel MOSFET to replace a Schottky in diode-OR / high-current diode apps"
+role: >
+  Power-path ORing MUX controller (R2 enabler, Path B), CANDIDATE. Functionally like
+  LM5050-1 (single N-FET ideal diode, needs TWO for a 2-input VBUS||VBAT OR), but pricier,
+  thinner stock, and a 9V floor that is acceptable but tighter for the 9-12.6V battery rail.
+
+sourcing:
+  primary:
+    distributor: LCSC
+    distributor_pn: C580861          # MSOP-8, LTC4357CMS8#TRPBF
+    stock: "757"
+    price_usd_1pc: 3.87              # MSOP variant; DFN (C107960) out of stock
+  alternates:
+    - distributor: LCSC
+      distributor_pn: C688220        # LTC4357HMS8#PBF, 244 stock
+    - distributor: DigiKey
+      distributor_pn: "LTC4357CMS8#TRPBF-ND"
+    - distributor: Newark
+      distributor_pn: "50AK3563"
+  multi_source: false
+  lifecycle: active
+
+kicad:
+  lib_id: "Power_Management:LTC4357DCB"          # DFN-6 default; LTC4357MS8 = MSOP-8 alt
+  footprint: "Package_DFN_QFN:DFN-6-1EP_3x2mm_P0.5mm_EP1.65x1.35mm"
+  footprint_alt: "Package_SO:MSOP-8_3x3mm_P0.65mm (lib_id Power_Management:LTC4357MS8 — matches in-stock MSOP part)"
+  footprint_exists: true
+  found: true
+
+specs:
+  vin_min_v: 9
+  vin_max_v: 80
+  external_fets: "1 N-FET per input -> 2 total for a 2-input OR"
+  current_capability: "set by external N-FET — 3A OK"
+  forward_drop: "ideal-diode regulated (Rds*I)"
+  package: "MSOP-8 (in stock) / DFN-6 (oos)"
+  priority_mechanism: >
+    Higher-rail-wins ideal-diode OR (same as LM5050-1): VBUS(15V)>VBAT holds SYS from VBUS,
+    battery branch reverse-blocked. No inherent demerit vs LM5050-1 except 9V floor, cost, stock.
+
+datasheet:
+  file: null                         # not cached (not the recommendation)
+  source_url: "https://www.analog.com/media/en/technical-documentation/data-sheets/4357fd.pdf"
+  rev: "ADI 4357fd"
+
+pins:                                 # from KiCad lib (LTC4357DCB DFN-6)
+  - { number: "1", name: "OUT",  type: "input" }
+  - { number: "2", name: "IN",   type: "input" }
+  - { number: "3", name: "GATE", type: "output" }
+  - { number: "4", name: "GND",  type: "power_in" }
+  - { number: "5", name: "NC",   type: "no_connect" }
+  - { number: "6", name: "Vdd",  type: "power_in" }
+pinout_verified: false

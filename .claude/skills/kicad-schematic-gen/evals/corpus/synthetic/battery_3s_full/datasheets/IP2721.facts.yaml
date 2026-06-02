@@ -1,0 +1,34 @@
+mpn: "IP2721"
+role: "USB-C PD sink controller"
+package: "TSSOP-16 (4.4x5mm, 0.65mm pitch)"   # actual
+datasheet: "IP2721.pdf"
+sourcing: { distributor: "LCSC", distributor_pn: "C603176", stock: 100000, price: "$0.38" }
+kicad: { lib_id: "Interface_USB:IP2721", footprint: "Package_SO:TSSOP-16_4.4x5mm_P0.65mm", found: true }
+# Pinout from KiCad Interface_USB:IP2721 (matches INJOINIC datasheet).
+pins:
+  - { number: "1",  name: "VBUSG", type: "output",        page: 4 }   # GATE driver for external power NMOS (load switch / output enable)
+  - { number: "2",  name: "VIN",   type: "power_in",      page: 4 }   # supply (drain side of NMOS); 1uF to GND
+  - { number: "3",  name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "4",  name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "5",  name: "GND",   type: "power_in",      page: 3 }
+  - { number: "6",  name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "7",  name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "8",  name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "9",  name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "10", name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "11", name: "SEL",   type: "input",         page: 4 }   # voltage-select: HIGH=20V, FLOAT=15V, GND=5V
+  - { number: "12", name: "CC2",   type: "bidirectional", page: 4 }   # Type-C CC2
+  - { number: "13", name: "CC1",   type: "bidirectional", page: 4 }   # Type-C CC1
+  - { number: "14", name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "15", name: "NC",    type: "no_connect",    page: 3 }
+  - { number: "16", name: "VBUS",  type: "input",         page: 4 }   # VBUS sense (source side of NMOS)
+pinout_verified: false
+# 15V selection: SEL pin LEFT FLOATING -> requests 15V max. (SEL=VSELH/high -> 20V;
+#   SEL=GND -> 5V only). Coarse 3-state select; only 5/15/20V available.
+#   CAUTION: 15V relies on a FLOATING pin, which is noise-susceptible; many designs
+#   prefer a defined level. No fine voltage table.
+# VBUS gate: YES. VBUSG (pin 1) is an integrated gate driver for an EXTERNAL power
+#   NMOS load switch: turns the NMOS ON only after CC negotiation completes, OFF on
+#   disconnect. This provides a controlled VBUS output-enable and soft-start, directly
+#   supporting R7 (the external NMOS also serves as the path-control/blocking FET).
+#   NMOS Vds rating >=30V recommended.

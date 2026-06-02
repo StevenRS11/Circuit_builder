@@ -1,0 +1,42 @@
+mpn: B4B-XH-A
+manufacturer: JST
+description: 4-pin XH-series wire-to-board header, 2.50mm pitch, through-hole vertical, 3A
+category: connector
+package: THT vertical, 1x4, 2.50mm pitch
+sourcing:
+  lcsc_pn: C144395           # B4B-XH-A(LF)(SN), JST original
+  lcsc_stock: 271990
+  lcsc_unit_price_usd: 0.0316
+  distributor: LCSC
+  lifecycle: active
+  multi_source: true         # JST + clone variants; SMD S4B-XH equivalents also available
+electrical:
+  positions: 4
+  pitch_mm: 2.50
+  current_rating_a: 3
+  voltage_rating_v: 250
+kicad:
+  lib_id: null               # use Connector_Generic:Conn_01x04
+  symbol: Connector_Generic:Conn_01x04
+  footprint: Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical
+  footprint_exists: true
+pins:
+  - number: "1"
+    name: Pin1
+    type: passive
+  - number: "2"
+    name: Pin2
+    type: passive
+  - number: "3"
+    name: Pin3
+    type: passive
+  - number: "4"
+    name: Pin4
+    type: passive
+pinout_verified: false
+notes: >
+  Item 6 - 3S LiPo balance connector. Standard JST-XH 4-pin (B-, B1, B2, B+).
+  Footprint Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical confirmed present
+  in KiCad (also _AM vertical variant available). Through-hole, mates with XHP-4
+  housing + SXH-001T crimps. Assign B-/B1/B2/B+ net mapping to pins 1-4 at the
+  layout/netlist stage (orientation matters - confirm against the pack's plug).

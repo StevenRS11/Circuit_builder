@@ -1,0 +1,22 @@
+mpn: "MP2731GQC"
+role: "Single-cell (1S) NVDC buck charger — DISQUALIFIED on cell count (cannot do 3S)"
+package: "QFN-26 (3.5x3.5 mm)"
+datasheet: "MP2731.pdf"   # NOT downloaded — MPS portal blocks direct fetch; disqualified before R2 matters
+notes: >
+  DISQUALIFIED before R2: MP2731 is a SINGLE-CELL (1S) Li-ion/Li-poly charger
+  (MPS product page: "Single Cell 4.5A Fast Charger with NVDC Power Path";
+  3.7-16V input, up to 22V sustainable). It does have a real NVDC SYS power path
+  and a TS pin, but a 1S charger cannot charge a 3S (12.2V) pack — out of scope for
+  this role. I2C-controlled. Not pursued further. (Listed by the spec; dropped with
+  cited reason: 1S only.)
+sourcing:
+  distributor: "LCSC"
+  distributor_pn: "unverified (MP2731GQC-0000)"
+  stock: 0
+  price: "n/a"
+kicad:
+  lib_id: null
+  footprint: "QFN-26 3.5x3.5mm — would need custom symbol"
+  found: false
+pins: []
+pinout_verified: false

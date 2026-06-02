@@ -1,0 +1,16 @@
+# USB4125-GF-A.facts.yaml — GCT USB-C receptacle (6P power-only), intrinsic facts.
+mpn: "USB4125-GF-A"
+role: "USB-C PD input receptacle (6-position power-only)"
+package: "USB-C SMD (TopMnt horizontal)"
+datasheet: "GCT USB4125 — jellybean connector, datasheet not cached"
+sourcing: { distributor: "LCSC", distributor_pn: "C2693884", stock: 5000, price: "$0.55" }
+kicad: { lib_id: "Connector:USB_C_Receptacle_GCT_USB4125_6P", footprint: "Connector_USB:USB_C_Receptacle_GCT_USB4125-xx-x_6P_TopMnt_Horizontal", found: true }
+pins:   # 6-position power-only USB-C: VBUS (A9/B9), CC1/CC2 (A5/B5), GND (A12/B12), shield (S1)
+  - { number: "A9",  name: "VBUS",   type: "passive",       page: 1 }
+  - { number: "B9",  name: "VBUS",   type: "passive",       page: 1 }
+  - { number: "A5",  name: "CC1",    type: "bidirectional", page: 1 }
+  - { number: "B5",  name: "CC2",    type: "bidirectional", page: 1 }
+  - { number: "A12", name: "GND",    type: "passive",       page: 1 }
+  - { number: "B12", name: "GND",    type: "passive",       page: 1 }
+  - { number: "S1",  name: "SHIELD", type: "passive",       page: 1 }
+pinout_verified: true

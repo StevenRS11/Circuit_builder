@@ -1,0 +1,76 @@
+mpn: "MAX77961EFV06+"
+role: "2S/3S buck-boost charger with integrated system power path (R2 enabler, autonomous via strap resistors)"
+package: "FC2QFN-30 4x4mm 0.4mm (4.0 x 4.0 x 0.6mm body, 30-lead, NO exposed pad; code F304A4F+1)"
+datasheet: "MAX77961.pdf"   # full 84-pg DS cached via Mouser mirror 3130359; analog.com + LCSC/Scribd/datasheet4u mirrors are bot-gated (curl 403 / HTML block page)
+notes: >
+  PASSES R2 (HARD GATE): integrated Smart Power Selector buck-boost. DS pg30 (power
+  states 3/4) + pg29: "system instant on with a dead battery." With CHGIN valid and
+  battery disconnected (QBAT off, MODE=0x04), the DC-DC regulates SYS from CHGIN —
+  SYS stays alive with no/dead battery. This is why this part was chosen.
+  AUTONOMOUS (no I2C): COMM_MODE reset = 0b0 = Autonomous Mode (pg of register map);
+  CHGIN_ILIM/CHGCC/CHG_CV_PRM/TO_ITH are set by resistors on INLIM/ISET/VSET/ITO.
+  Cell count set by RCNFG on CNFG (Table 1). NO equations — all settings are LOOKUP
+  TABLES (Tables 1,5,6,7,8). Charging works with zero I2C as long as all four pins
+  carry a VALID resistor (mixing resistor + PVL/open across the four = "abnormal, no
+  charge" but DC-DC still regulates SYS, Table 4).
+  WARNING: VSET has NO 12.2V option for 3S. 3S steps are 0.15V: 12.0, 12.15, 12.3,
+  12.45, 12.6 ... 13.05V max. Closest to requested 12.2V = 12.15V (RVSET=178k) or
+  12.3V (140k). Default/standard 4.2V-per-cell = 12.6V uses RVSET=86.6k.
+  3S-SPECIFIC HW: requires 3A Schottky BATT->SYS *plus* an inrush-protection FET +
+  RC (470k/1k/910k + 0.047uF) network (DS Fig.15, pg76). 2S needs only the Schottky.
+  R11 (ship current): ISHDN = 2.3uA typ / 5.0uA max (DS pg, Electrical Char:
+  FSHIP_MODE=1 OR DISQBAT=high, VCHGIN=0, VBATT=13.5V). Entered WITHOUT I2C by
+  driving DISQBAT high. Well under the <100uA storage budget.
+  There is NO separate "CP" charge-pump flying-cap pin on this part. The flying caps
+  are the BST1/BST2 bootstraps (0.22uF). Input current sense is differential across
+  CSINP/CSINN with an external 10mohm RSENSE (1206) + RC filter.
+sourcing:
+  distributor: "DigiKey / Mouser (MAX77961EFV06+, 6A part)"
+  distributor_pn: "DigiKey MAX77961EFV06+-ND / Mouser 700-MAX77961EFV06"
+  stock: null   # confirm live; MAX77961 6A variant is the EFV06 grade
+  price: "~$6-8 @1 (street); confirm at order time"
+  alt_source: "MAX77960EFV06+ (3A sibling) = LCSC C1020018, ~$5.94-7.17 @1, ~6k stock, also JLCPCB 1111276. Pin-identical, lower output current."
+kicad:
+  lib_id: "MAX77961EFV06_:MAX77961EFV06_"   # vendor SnapEDA symbol (Analog Devices), installed locally
+  footprint: "MAX77961EFV06_:IC_MAX77961EFV06_"   # vendor SnapEDA footprint, 30 pads
+  found: true
+  # CONFIRMED no exposed pad. This is a 30-LEAD FC2QFN (flip-chip QFN), package code
+  # F304A4F+1, land pattern 90-100100 (datasheet pg 8 + Pin Configuration pg 20):
+  # 30 leads, NO pin 31, NO center EP. Thermal path is junction-to-CASE through the
+  # leads (theta_JC 1.67 C/W) + the wide power lands (LX/SYS/BATT/PGND), not a center
+  # pad. The vendor SnapEDA 30-pin symbol + footprint are correct; fab as-is.
+pins:
+  - { number: 1,  name: BST1,   type: power_in,  page: 21 }   # High-side input MOSFET driver supply; 0.22uF to LX1
+  - { number: 2,  name: CHGIN,  type: power_in,  page: 21 }   # Buck-boost charger input (VBUS); 2x10uF/35V to PGND
+  - { number: 3,  name: LX1,    type: passive,   page: 21 }   # Inductor connection 1
+  - { number: 4,  name: PGND,   type: power_in,  page: 21 }   # Power ground (low-side FETs)
+  - { number: 5,  name: LX2,    type: passive,   page: 21 }   # Inductor connection 2
+  - { number: 6,  name: SYS,    type: power_out, page: 21 }   # System supply output; 2x47uF/25V (3x for 3S) to PGND
+  - { number: 7,  name: OTGEN,  type: input,     page: 21 }   # Active-high OTG enable; tie LOW (<44k pulldown / GND) for charger-only
+  - { number: 8,  name: DISQBAT,type: input,     page: 21 }   # Active-high; HIGH disables QBAT + enters ship mode. LOW (<44k) for charging
+  - { number: 9,  name: BST2,   type: power_in,  page: 21 }   # High-side output MOSFET driver supply; 0.22uF to LX2
+  - { number: 10, name: BATSN,  type: input,     page: 21 }   # Battery differential sense negative (PACK-)
+  - { number: 11, name: BATSP,  type: input,     page: 21 }   # Battery differential sense positive (PACK+)
+  - { number: 12, name: BATT,   type: power_out, page: 21 }   # Battery power connection (PACK+); 10uF/25V to PGND. All BATT pins tied
+  - { number: 13, name: THM,    type: input,     page: 21 }   # Thermistor (NTC to GND, RTB to AVL). GND=disable, AVL=emulate removal
+  - { number: 14, name: SCL,    type: input,     page: 21 }   # I2C clock; autonomous -> pull up to PVL (or GND-tie unused)
+  - { number: 15, name: SDA,    type: bidirectional, page: 21 } # I2C data, open-drain; autonomous -> pull up to PVL
+  - { number: 16, name: STAT,   type: open_collector, page: 21 } # Charger status, active-low OD; 10k pullup to PVL
+  - { number: 17, name: INOKB,  type: open_collector, page: 21 } # Input-OK/OTG-OK, active-low OD; pullup to PVL (200k in DS app ckt)
+  - { number: 18, name: INTB,   type: open_collector, page: 21 } # Interrupt, active-low OD; pullup to PVL
+  - { number: 19, name: SYSA,   type: input,     page: 21 }   # SYS voltage sense for UVLO/OVLO; 10uF cap, tie to SYS
+  - { number: 20, name: GND,    type: power_in,  page: 21 }   # Analog ground
+  - { number: 21, name: INLIM,  type: input,     page: 21 }   # Input current-limit set: RINLIM to GND (Table 5)
+  - { number: 22, name: CNFG,   type: input,     page: 21 }   # Cell-count config: RCNFG to GND (Table 1). 3S=8.66k
+  - { number: 23, name: ISET,   type: input,     page: 22 }   # Fast-charge current set: RISET to GND (Table 6)
+  - { number: 24, name: VSET,   type: input,     page: 22 }   # Charge term. voltage set: RVSET to GND (Table 8)
+  - { number: 25, name: ITO,    type: input,     page: 22 }   # Top-off current set: RITO to GND (Table 7)
+  - { number: 26, name: AVL,    type: power_out, page: 22 }   # Analog LDO out; 4.7uF/6.3V to GND, 4.7ohm to PVL
+  - { number: 27, name: PVL,    type: power_out, page: 22 }   # Bias regulator out (gate-drive bypass); 4.7uF/6.3V to GND, 4.7ohm to AVL. Pullup rail for autonomous straps
+  - { number: 28, name: STBY,   type: input,     page: 22 }   # Active-high; HIGH disables DC-DC (batt powers SYS). LOW (<44k) for normal
+  - { number: 29, name: CSINP,  type: input,     page: 22 }   # Input current-sense positive (across 10mohm RSENSE)
+  - { number: 30, name: CSINN,  type: input,     page: 22 }   # Input current-sense negative
+  # CORRECTION: an earlier revision of this card listed a pin 31 = EP. That was wrong —
+  # the MAX77961 is a 30-LEAD FC2QFN with NO exposed pad (verified against the datasheet
+  # Pin Configuration pg 20 + Package Information pg 8, code F304A4F+1). Pin set is 1-30.
+pinout_verified: true

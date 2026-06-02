@@ -1,0 +1,50 @@
+# Fact card — intrinsic part facts only (no per-design connectivity)
+mpn: AO3401A
+manufacturer: Alpha & Omega Semiconductor (AOS)
+description: "-30V -4A P-channel MOSFET, SOT-23, low Rds(on)"
+role: "Battery reverse-polarity P-FET (R6) / USB-C VBUS blocking FET (R7) — light-path option"
+
+sourcing:
+  primary:
+    distributor: LCSC
+    distributor_pn: C15127        # AOS brand
+    stock: ">100000"
+    price_usd_1pc: 0.0338
+  alternates:
+    - distributor: LCSC
+      distributor_pn: C306862     # BORN brand, ~$0.0248
+    - distributor: DigiKey
+      distributor_pn: "AO3401A (785-1855773 family)"
+  multi_source: true              # AOS, BORN, UMW, VBsemi, ElecSuper all stock it
+  lifecycle: active
+
+kicad:
+  symbol_specific: "Transistor_FET:AO3401A"   # dedicated symbol exists
+  symbol_generic: "Device:Q_PMOS_GSD"          # rubric-preferred generic for MOSFETs
+  lib_id: "Transistor_FET:AO3401A"
+  footprint: "Package_TO_SOT_SMD:SOT-23"
+  footprint_exists: true
+  found: true
+
+specs:
+  channel: P
+  vds_v: -30           # BVDSS -30V -> 2x margin over 3S 12.6V (PASS R6); margin over 15V VBUS (PASS R7)
+  id_cont_a: -4.0      # TA=25C; SOT-23 thermally limited well below this -> ~3A path is marginal, OK for cool operation
+  rds_on_mohm: 50      # < 50 mOhm @ VGS=-10V (47-60 typ/max). At 3A: ~0.45W -> SOT-23 hot. Prefer AO4407A for the 3A rail.
+  vgs_th_v: [-0.5, -0.9, -1.3]   # min/typ/max
+  vgs_max_v: 12        # +-12V gate rating -> 3S 12.6V gate drive is right at the edge; clamp/limit gate
+  # OFF-state leakage (relevant to R11 budget if used as the gated load switch)
+  idss_ua: -1          # Zero-gate drain leakage @ VDS=-30V, 25C (-5uA @ TJ=55C)  [datasheet Electrical Characteristics table]
+  igss_na: 100         # gate-body leakage, +-100nA
+  package: SOT-23
+
+pinout_verified: false   # generic 3-pin MOSFET G/S/D — pins per Transistor_FET:AO3401A symbol
+pins:
+  - {number: "1", name: "G", type: "input"}
+  - {number: "2", name: "S", type: "passive"}
+  - {number: "3", name: "D", type: "passive"}
+
+datasheet:
+  file: AO3401A.pdf
+  source_url: "https://www.aosmd.com/res/datasheets/AO3401.pdf"
+  leakage_page: "Electrical Characteristics (IDSS / IGSS rows)"

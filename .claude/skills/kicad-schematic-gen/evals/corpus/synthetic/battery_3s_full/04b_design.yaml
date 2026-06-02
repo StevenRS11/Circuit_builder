@@ -1,0 +1,132 @@
+project_name: "battery_3s"
+
+# ═══════════════════════════════════════════════════════════════
+# Power rails — current budget
+# ═══════════════════════════════════════════════════════════════
+rails:
+  - name: "SYS (VSTEPPER/charger input)"
+    voltage: 15.0            # USB-PD present; slides to 9-12.6 on battery
+    source_ma: 3000          # USB-PD 15V/3A (45W)
+    loads:
+      - name: "DRV8825 stepper (NEMA17 1.5A cont, 2A peak)"
+        current_ma: 1500
+      - name: "5V buck input (reflected, 5V/1.5A @ ~85%)"
+        current_ma: 600
+      - name: "Battery charge (MPPSET-throttled when source loaded)"
+        current_ma: 700      # throttles down as system load rises; 1.6A only when system light
+  - name: "+5V"
+    voltage: 5.0
+    source_ma: 2000          # AP63200 2A
+    loads:
+      - name: "ESP32 + peripherals (downstream)"
+        current_ma: 1500
+      - name: "Status LEDs + pull-ups"
+        current_ma: 10
+
+# ═══════════════════════════════════════════════════════════════
+# Feedback dividers (regulator setpoints)
+# ═══════════════════════════════════════════════════════════════
+feedback_dividers:
+  - name: "BQ24650 VFB — 3S charge float"
+    vref: 2.1
+    r_top: "481k"
+    r_bot: "100k"
+    target_vout: 12.2
+    tolerance_pct: 2
+    ifb_ua: 0.1
+  - name: "AP63200 FB — 5V buck"
+    vref: 0.8
+    r_top: "52.3k"
+    r_bot: "10k"
+    target_vout: 5.0
+    tolerance_pct: 2
+    ifb_ua: 0.1
+
+# ═══════════════════════════════════════════════════════════════
+# Voltage dividers
+# ═══════════════════════════════════════════════════════════════
+voltage_dividers:
+  - name: "BQ24650 MPPSET (must stay > 1.2V to disable MPPT at 15V)"
+    vin: 15.0
+    r_top: "100k"
+    r_bot: "12k"
+    target_vout: 1.607
+    tolerance_pct: 5
+    load_current_ua: 0
+
+# ═══════════════════════════════════════════════════════════════
+# LED circuits
+# ═══════════════════════════════════════════════════════════════
+led_circuits:
+  - name: "D1 — Power LED (green, from +5V)"
+    vsource: 5.0
+    vf: 2.2
+    resistor: "1k"
+    target_current_ma: 2.8
+    max_current_ma: 20
+  - name: "D2 — Charge LED (red, VREF 3.3V via STAT1)"
+    vsource: 3.3
+    vf: 2.0
+    resistor: "1k"
+    target_current_ma: 1.3
+    max_current_ma: 20
+
+# ═══════════════════════════════════════════════════════════════
+# Capacitor sizing / MLCC voltage derating (2x rule)
+# ═══════════════════════════════════════════════════════════════
+cap_checks:
+  - name: "C1 — VBUS_USB bulk"
+    reference: "C1"
+    value_uf: 10
+    min_uf: 1
+    voltage_rating: 50
+    operating_voltage: 15.0
+    type: "MLCC"
+  - name: "C3 — SYS bulk"
+    reference: "C3"
+    value_uf: 10
+    min_uf: 1
+    voltage_rating: 50
+    operating_voltage: 15.0
+    type: "MLCC"
+  - name: "C10 — BAT bulk"
+    reference: "C10"
+    value_uf: 10
+    min_uf: 4.7
+    voltage_rating: 50
+    operating_voltage: 12.6
+    type: "MLCC"
+  - name: "C12 — Buck Cin (SW_OUT)"
+    reference: "C12"
+    value_uf: 10
+    min_uf: 4.7
+    voltage_rating: 50
+    operating_voltage: 15.0
+    type: "MLCC"
+  - name: "C13 — Buck Cout"
+    reference: "C13"
+    value_uf: 22
+    min_uf: 20
+    voltage_rating: 16
+    operating_voltage: 5.0
+    type: "MLCC"
+  - name: "C16 — +5V bulk"
+    reference: "C16"
+    value_uf: 10
+    min_uf: 4.7
+    voltage_rating: 16
+    operating_voltage: 5.0
+    type: "MLCC"
+
+# ═══════════════════════════════════════════════════════════════
+# Custom / unanalyzable subcircuits (manual-review flag)
+# ═══════════════════════════════════════════════════════════════
+custom_checks:
+  - name: "Ideal-diode OR (LM5050-1+Q5 VBUS→SYS, LTC4412+Q4 VBAT→SYS)"
+    notes: "SYS=max(VBUS,VBAT). LM5050-1 VS fed from VBUS side (R11). Reverse-block protects CH224K (R7). Verified at Stage 2/4; not DC-pattern-analyzable."
+  - name: "BQ24650 synchronous buck power stage (Q2/Q3/L1/RS1)"
+    notes: "15V→12.2V, 1.5A. ICHG=40mV/25mΩ=1.6A FS. L1=10µH (ripple ~0.45A). RS1=25mΩ 2W (I²R at 1.6A=64mW)."
+  - name: "Q1 reverse-polarity P-FET + master load-switch Q6/Q7"
+    notes: "AO4407A Vds -30V > 12.6V*2. Q6 cuts both outputs via SYSTEM_EN (R11). Vgs within ±25V."
+  - name: "USB-C PD + balance-tap ESD (USBLC6, SMF TVS)"
+    notes: "Per-tap TVS standoff above tap voltage; USBLC6 on VBUS/CC."

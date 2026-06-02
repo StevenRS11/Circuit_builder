@@ -1,0 +1,29 @@
+mpn: HoYLR2512-2W-25mR-1%
+manufacturer: Milliohm
+description: 25mOhm current-sense resistor, 2W, 1%, 2512 alloy shunt
+category: current_sense_resistor
+package: 2512 (6332 metric)
+sourcing:
+  lcsc_pn: C5375424
+  lcsc_stock: in_stock          # series stocked at LCSC (2/5/50mR siblings confirmed in-stock)
+  lcsc_unit_price_usd: 0.027    # ~$0.02-0.03, in line with HoYLR2512 series pricing
+  distributor: LCSC
+  lifecycle: active
+  multi_source: true            # GX2512 / LR2512 / RALEC equivalents exist at same value
+electrical:
+  resistance_ohm: 0.025
+  power_w: 2
+  tolerance_pct: 1
+  tcr_ppm: 50
+kicad:
+  lib_id: null                  # passive - use Device:R symbol
+  symbol: Device:R
+  footprint: Resistor_SMD:R_2512_6332Metric
+  footprint_exists: true
+pinout_verified: false
+notes: >
+  BQ24650 charge-current sense resistor (SRP/SRN). Full-scale V(SRP-SRN)=40mV.
+  R=25mOhm -> full-scale charge current = 40mV/25mOhm = 1.6A (BQ24650 regulates
+  charge current down to the 1.5A target). At 1.5A: P = I^2*R = 2.25*0.025 =
+  0.056W, well under the 2W rating. If exactly 1.5A full-scale wanted, use 27mOhm
+  (40mV/27mOhm = 1.48A); 25mOhm is a stocked E24-friendly value and preferred.

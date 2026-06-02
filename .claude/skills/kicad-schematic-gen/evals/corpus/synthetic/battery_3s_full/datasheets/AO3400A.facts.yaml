@@ -1,0 +1,42 @@
+mpn: AO3400A
+manufacturer: Alpha & Omega Semiconductor (AOS)
+description: N-channel MOSFET, 30V Vds, 5.7A Id, logic-level, SOT-23
+category: mosfet_n_channel
+package: SOT-23
+sourcing:
+  lcsc_pn: C20917
+  lcsc_stock: 1021705
+  lcsc_unit_price_usd: 0.0828   # qty 5+ tier (AOS brand); cheaper BORN/PUOLOP clones exist
+  distributor: LCSC
+  lifecycle: active
+  multi_source: true            # AOS + many second-sources (BORN, PUOLOP, etc.)
+electrical:
+  vds_max_v: 30
+  id_continuous_a: 5.7
+  rds_on_ohm_typ: 0.028         # @ Vgs=4.5V (typ); 0.036 max
+  rds_on_vgs_v: 4.5
+  vgs_th_v: 1.6                 # typ; logic-level gate
+  qg_typ_nc: 6
+kicad:
+  lib_id: Transistor_FET:AO3400A
+  footprint: Package_TO_SOT_SMD:SOT-23
+  footprint_exists: true
+pins:
+  - number: "1"
+    name: G
+    type: input
+  - number: "2"
+    name: S
+    type: passive
+  - number: "3"
+    name: D
+    type: passive
+pinout_verified: false
+notes: >
+  Primary N-FET for this board. Covers BQ24650 synchronous-buck high-side and
+  low-side switches (15V in, ~12.2V/1.5A charge) cleanly. Also usable as the
+  LM5050-1 VBUS-branch ideal-diode FET, BUT at 3A continuous: P = I^2*Rds =
+  9*0.036 = ~0.32W in SOT-23 (theta_ja ~250 C/W) -> ~80 C rise, runs hot.
+  Acceptable for intermittent USB charging; if VBUS-FET continuous dissipation
+  matters, upsize that one position to CSD18540Q5B (SON 5x6, 2.2mOhm). Same
+  KiCad symbol family; both carded here.

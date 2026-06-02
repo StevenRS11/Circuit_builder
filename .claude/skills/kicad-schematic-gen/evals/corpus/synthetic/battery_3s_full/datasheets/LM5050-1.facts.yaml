@@ -1,0 +1,68 @@
+# Fact card — intrinsic part facts only (no per-design connectivity)
+mpn: "LM5050MK-1/NOPB"
+manufacturer: Texas Instruments
+description: "High-side OR-ing ideal-diode controller, 5V-75V (1V w/ separate VS bias), drives external N-channel MOSFET, charge-pump gate driver, ~25ns reverse comparator"
+role: >
+  Power-path ORing MUX controller (R2 enabler, Path B). Two LM5050-1 + two N-FETs OR
+  VBUS and VBAT into a common SYS node; each ideal diode conducts only when its input is
+  the higher rail, so SYS is always held from the higher source and the lower source's FET
+  is reverse-blocked (no backfeed). RECOMMENDED for the 3A SYS MUX.
+
+sourcing:
+  primary:
+    distributor: LCSC
+    distributor_pn: C129323
+    stock: "2420"
+    price_usd_1pc: 0.46           # ~$0.4554 @1 (LCSC). Need TWO for a 2-input OR.
+  alternates:
+    - distributor: LCSC
+      distributor_pn: C473393     # LM5050MKX-1/NOPB (tape variant)
+    - distributor: DigiKey
+      distributor_pn: "LM5050MK-1/NOPB"
+    - distributor: Mouser
+      distributor_pn: "595-LM5050MK-1/NOPB"
+  multi_source: false             # single-die TI part, but stocked at LCSC/DK/Mouser; active
+  lifecycle: active
+
+kicad:
+  lib_id: "Power_Management:LM5050-1"
+  footprint: "Package_TO_SOT_SMD:TSOT-23-6"
+  footprint_exists: true
+  found: true
+
+specs:
+  vin_min_v: 5            # 1V possible with a separate 5-75V VS bias
+  vin_max_v: 75           # operating; 100V transient survival -> huge margin over 15V VBUS
+  abs_max_v: 100
+  external_fets: "1 N-FET per input -> 2 total for a 2-input OR"
+  current_capability: "set by external N-FET (e.g. AO-class N-FET) — easily 3A"
+  forward_drop: "ideal-diode regulated; Vsd target tens of mV (Rds*I), << Schottky"
+  reverse_response_typ_ns: 25
+  gate_drive: "internal charge pump, ~12V Vgs clamp above IN"
+  package: "TSOT-23-6 (6-Pin SOT)"
+  priority_mechanism: >
+    Natural higher-rail-wins ideal-diode OR. With VBUS(15V) > VBAT(<=12.6V), the VBUS
+    LM5050-1 keeps its FET enhanced and the VBAT branch sees IN<OUT so its reverse
+    comparator holds that FET off (battery isolated). When VBUS drops below VBAT, the VBAT
+    branch's body diode conducts then enhances -> seamless handoff. VBUS priority is
+    inherent to the voltage ordering; STAT/OFF could add explicit priority but not required.
+
+datasheet:
+  file: LM5050-1.pdf
+  source_url: "https://www.ti.com/lit/ds/symlink/lm5050-1.pdf"
+  rev: "TI SNVS629F / Dec 2019"
+  r2_citation: >
+    Sec 8.2.3 'ORing of Two Power Sources' + Figure 28 (pg 18): two LM5050-1 channels OR two
+    sources into a common output. Sec 8.1.2 / Figure 21-22 (pg 14) 'OR-ing With MOSFETs':
+    high-side OR-ing controller drives an N-FET to replace an OR-ing diode; the higher source
+    holds the common output and the reverse comparator (pg 13/16) blocks back-current from the
+    lower source within ~25ns. This holds SYS from VBUS regardless of battery state -> meets R2.
+
+pins:
+  - { number: "1", name: "VS",   type: "passive", page: 3 }   # bias/charge-pump supply
+  - { number: "2", name: "GND",  type: "power_in", page: 3 }
+  - { number: "3", name: "OFF",  type: "input", page: 3 }     # logic-high pulls GATE low
+  - { number: "4", name: "IN",   type: "input", page: 3 }     # FET source sense
+  - { number: "5", name: "GATE", type: "output", page: 3 }    # to external N-FET gate
+  - { number: "6", name: "OUT",  type: "input", page: 3 }     # FET drain sense / common output
+pinout_verified: true

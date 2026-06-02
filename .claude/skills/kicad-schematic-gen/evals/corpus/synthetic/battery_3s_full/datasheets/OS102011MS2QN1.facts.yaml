@@ -1,0 +1,63 @@
+# Fact card — intrinsic part facts only (no per-design connectivity)
+mpn: OS102011MS2QN1
+manufacturer: C&K (Littelfuse)
+description: "SPDT ON-ON miniature slide switch, 100mA/12VDC, THT vertical, non-shorting"
+role: "Master power switch (R11 [CRITICAL]) — gates the enable/CE lines, NOT the power path"
+
+# WHY THIS PART / TOPOLOGY (R11 budget):
+# The switch is wired into the LOW-CURRENT enable/control lines (charger CE/EN and the two
+# output load-switch P-FET gates), so its 100mA contact rating is never a limit. With the
+# switch in OFF, every downstream control IC is held in shutdown and both output P-FETs are
+# held OFF (gate pulled to source). A mechanical open contact has ZERO leakage, so the only
+# storage drain is the OFF-state leakage of the parts left connected to the battery:
+#   - output load-switch P-FET drain leakage IDSS:  ~1 uA each (AO4407A/AO3401A, 25C)  x2 outputs = ~2 uA
+#   - charger IC shutdown/Iq (CE high -> shutdown): typ single-digit uA (part-specific; see charger card)
+#   - gate-pulldown resistor on a switched-off node: ~0 (no path to GND when switch open)
+# TOTAL well under the ~100 uA gate even with worst-case TJ=55C IDSS (~5 uA each).
+# This is the simplest provably-<100uA topology: zero-leakage mechanical contact in the control plane.
+# Note THT 3-pin part -> PCBway charges per-pin assembly (3 pins); acceptable for one switch.
+
+sourcing:
+  primary:
+    distributor: LCSC
+    distributor_pn: C221829
+    stock: ">100"
+    price_usd_1pc: 0.3135
+  alternates:
+    - distributor: DigiKey
+      distributor_pn: "CKN9565-ND (OS102011MS2QN1)"
+      price_usd_1pc: 0.71
+  multi_source: true            # C&K via LCSC/DK/Mouser/Newark
+  lifecycle: active
+
+kicad:
+  symbol_specific: "Switch:SW_SPDT"
+  lib_id: "Switch:SW_SPDT"
+  footprint: "Button_Switch_THT:SW_Slide_SPDT_Straight_CK_OS102011MS2Q"
+  footprint_exists: true        # exact CK OS102011MS2Q footprint ships in KiCad
+  found: true
+
+specs:
+  config: SPDT (ON-ON, non-shorting)
+  contact_rating: "100 mA @ 12 VDC"   # control-line use only; not in the 3A path
+  actuation: "slide, 2mm travel, straight/vertical PC pins"
+  mount: THT
+  off_state_leakage: "0 (mechanical open contact)"   # the load-bearing R11 fact
+  package: "THT 3-pin slide"
+
+pinout_verified: false           # standard SPDT: common + 2 throws per Switch:SW_SPDT
+pins:
+  - {number: "1", name: "A", type: "passive"}    # throw 1
+  - {number: "2", name: "COM", type: "passive"}  # common (wiper)
+  - {number: "3", name: "B", type: "passive"}    # throw 2
+
+datasheet:
+  file: OS102011MS2QN1.pdf
+  source_url: "https://www.ckswitches.com/media/1428/os.pdf"
+  note: >
+    PDF mirror is Akamai/CDN-gated and refuses scripted download (Access Denied / HTML stub),
+    so the binary is NOT cached. Ratings above are confirmed from LCSC C221829, DigiKey
+    CKN9565-ND, and Newark 35AH4511 product pages. The R11 leakage evidence does NOT live in
+    this datasheet (an open mechanical contact has no leakage spec) — it lives in the MOSFET
+    IDSS rows (AO4407A.pdf / AO3401A.pdf) and the charger shutdown-Iq spec, which ARE cached.
+  leakage_page: "n/a (mechanical contact; leakage = 0)"

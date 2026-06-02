@@ -1,0 +1,22 @@
+mpn: "MP2762AGV"
+role: "2-cell (2S) NVDC buck-boost charger w/ integrated FETs — DISQUALIFIED on cell count (cannot do 3S)"
+package: "QFN-30 (4x5 mm)"
+datasheet: "MP2762A.pdf"  # NOT downloaded — MPS portal blocks direct fetch; disqualified before R2 matters
+notes: >
+  DISQUALIFIED before R2: MP2762A is a 2-CELL (2S) charger (MPS product page:
+  "5V to 20V, USB PD, 2-Cell, 6A Dual-Phase NVDC Buck-Boost Charger with Integrated
+  FETs and OTG"; JLCPCB C5354517). It has the attractive properties (integrated FETs,
+  real NVDC SYS power path, TS pin, OTG) but tops out at 2S — it cannot charge a 3S
+  (12.2V) pack. Out of scope for this role. I2C-controlled. Not pursued further.
+  (Not a spec-named candidate; evaluated as a "better-fit" option and dropped: 2S max.)
+sourcing:
+  distributor: "JLCPCB/LCSC"
+  distributor_pn: "C5354517"
+  stock: "unverified"
+  price: "n/a"
+kicad:
+  lib_id: null
+  footprint: "QFN-30 4x5mm — would need custom symbol"
+  found: false
+pins: []
+pinout_verified: false

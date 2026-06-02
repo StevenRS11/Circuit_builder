@@ -1,0 +1,66 @@
+# Fact card — intrinsic part facts only (no per-design connectivity)
+mpn: "LTC4412ES6#TRPBF"
+manufacturer: Analog Devices (Linear Technology)
+description: "Low-loss PowerPath controller, ThinSOT-23-6, drives external P-channel MOSFET as a near-ideal diode (~20mV drop), automatic switchover, 11uA Iq"
+role: >
+  Power-path ORing MUX controller (R2 enabler, Path B), CANDIDATE / runner-up. Drives a
+  P-FET ideal diode; intended for primary(adapter)+battery auto-switchover. STAT pin can
+  gate an auxiliary P-FET to give explicit priority. P-FET-native and design-friendly, but
+  pricier than LM5050-1 and lower voltage headroom.
+
+sourcing:
+  primary:
+    distributor: LCSC
+    distributor_pn: C514442
+    stock: "3260"
+    price_usd_1pc: 3.04           # ~$3.04 @1 (LCSC) — ~6x the LM5050-1
+  alternates:
+    - distributor: DigiKey
+      distributor_pn: "LTC4412ES6#TRPBF-ND"
+    - distributor: Mouser
+      distributor_pn: "584-LTC4412ES6PBF"
+  multi_source: false             # ADI sole-source die; stocked LCSC/DK/Mouser, active
+  lifecycle: active
+
+kicad:
+  lib_id: "Power_Management:LTC4412xS6"
+  footprint: "Package_TO_SOT_SMD:TSOT-23-6"
+  footprint_exists: true
+  found: true
+
+specs:
+  vin_adapter_range_v: [3, 28]    # AC/DC adapter input range
+  vbatt_range_v: [2.5, 28]        # battery input range
+  vin_abs_max_v: 36               # -14V to 36V (abs max); VIN-to-SENSE -28V..+28V
+  external_fets: "1 P-FET (primary path); +1 optional aux P-FET via STAT for explicit OR -> 1-2 total"
+  current_capability: "set by external P-FET (AO4407A class) — 3A OK"
+  forward_drop: "~20mV typ when conducting (ideal diode)"
+  iq_ua: 11
+  package: "ThinSOT-23-6 (SOT-23-6)"
+  priority_mechanism: >
+    Designed for primary(adapter)+battery switchover: when the adapter (VBUS) is present the
+    load is automatically disconnected from the battery (battery P-FET off). STAT enables an
+    aux P-FET for the second source. Gives explicit adapter-priority OR. Note: at 15V VBUS the
+    part is well inside its 28V op / 36V abs-max range, but headroom is far tighter than the
+    LM5050-1 (75V), and a single controller natively does one ideal-diode path (needs the STAT
+    aux-FET trick or a 2nd LTC4412 for a clean symmetric 2-input OR).
+
+datasheet:
+  file: LTC4412.pdf
+  source_url: "https://www.analog.com/media/en/technical-documentation/data-sheets/4412fb.pdf"
+  cached_from: "https://media.digikey.com/PDF/Data Sheets/Linear Technology PDFs/LTC4412.pdf"
+  rev: "ADI 4412f"
+  r2_note: >
+    Datasheet pg1: 'load is automatically disconnected from the battery when the auxiliary
+    source is connected' + 'highly efficient OR'ing of multiple power sources'. Meets R2
+    (SYS held from adapter regardless of battery), but as a single P-FET path; symmetric
+    2-input OR needs STAT aux-FET or a second device.
+
+pins:
+  - { number: "1", name: "VIN",   type: "power_in", page: 2 }
+  - { number: "2", name: "GND",   type: "power_in", page: 2 }
+  - { number: "3", name: "CTL",   type: "input", page: 2 }          # force primary FET off
+  - { number: "4", name: "STAT",  type: "open_collector", page: 2 } # aux-supply present flag / aux P-FET gate
+  - { number: "5", name: "GATE",  type: "output", page: 2 }         # to primary P-FET gate
+  - { number: "6", name: "SENSE", type: "input", page: 2 }          # output/drain sense
+pinout_verified: true

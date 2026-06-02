@@ -1,0 +1,41 @@
+# Eval corpus case manifest — battery_3s_full
+name: battery_3s_full
+provenance: synthetic          # self-consistent, NOT physically built → regression/process anchor only
+source: "outputs_battery_3s — regenerated through the current skill (subagents + fact cards), 2026-06-01"
+design: "3S Li-ion charger + power-path board (Path A', MAX77961 autonomous strap-set charger)"
+notes: >
+  Full current-skill artifact set (spec, candidates, BOM, fact cards, design analysis,
+  netlist, layout, traceability + golden). Exercises the whole deterministic pipeline,
+  including the subagent/card legs. Demonstrates the [CRITICAL] gate working as designed:
+  the traceability selects MAX77961 and records BQ24650 as REJECTED for failing R2
+  (system power path), with "answer-blind verified" datasheet evidence. NOT yet built or
+  bench-verified — this is a regression + process anchor, never a correctness ground truth
+  (that role waits for a validated board; see ../../validated/README.md).
+
+golden:
+  file: golden.kicad_sch
+  uuid_seed: 0
+  bytes: 216350
+
+# Hard contract — asserted by test_evals.py:
+#   every applicable grader passes (0 errors) AND the regenerated schematic
+#   (generate_from_data, uuid_seed=0) byte-matches golden.kicad_sch.
+expect:
+  passed: true
+
+# Observed warning/info profile at snapshot — DOCUMENTED, not asserted (informational).
+# Errors are 0 everywhere (that is the asserted contract). Warnings are benign and explained.
+observed:
+  generate:           { errors: 0, warnings: 9 }    # decoupling/cosmetic placement notes
+  validate:           { errors: 0, warnings: 9 }
+  verify_netlist:     { errors: 0, warnings: 0 }
+  cross_check_bom:    { errors: 0, warnings: 0 }
+  check_cards:        { errors: 0, warnings: 13, infos: 11 }
+  # check_cards detail: 11 card_missing_lib_id (jellybeans/candidate cards with no lib_id),
+  #   2 ic_without_card (Device:D_TVS, Device:Thermistor_NTC — generic 2-terminal jellybeans
+  #   authored as symbols, legitimately no datasheet card); 11 info = unused candidate cards
+  #   (BQ24650/BQ25713/… evaluated but not selected — the datasheets/ folder keeps every card).
+  check_requirements: { errors: 0, warnings: 0 }
+  analyze_dc:         { errors: 0, warnings: 1 }
+  analyze_analog:     { errors: 0, warnings: 2 }    # advisory front-end notes (charger, not a sensor FE)
+  check_pcbway:       { errors: 0, warnings: 7 }    # package cautions (review, not blocking)
