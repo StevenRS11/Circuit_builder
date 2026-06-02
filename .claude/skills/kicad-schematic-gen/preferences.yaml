@@ -8,11 +8,13 @@
 # PCBway can actually source and assemble cleanly (see the `assembly`
 # section and scripts/check_pcbway.py for the compatibility rubric).
 #
-# The `parts` section is still useful: `preferred` holds your go-to part
-# per role (a specific connector, a default LDO) so the skill reaches for
-# them first, and `on_hand` lists anything you physically keep (e.g. to
-# consign to PCBway or hand-rework). Edit this file to match your
-# preferences; the skill reads it before generating any schematic.
+# Turnkey is the norm: assume PCBway sources 100% of the BOM. The `parts`
+# section's `preferred` block holds your go-to part per role (a specific
+# connector, a default LDO) so the skill reaches for them first. The
+# `on_hand`/consignment machinery is kept for the rare part PCBway can't
+# source (consign it instead) — it is the exception, not the workflow.
+# Edit this file to match your preferences; the skill reads it before
+# generating any schematic.
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -21,16 +23,21 @@
 # ═══════════════════════════════════════════════════════════════════
 
 defaults:
-  # Passive component package size
+  # Passive component package size.
   # Options: 0402, 0603, 0805, 1206
-  passive_package: "0805"
+  # PCBway places these — not you — so optimize for board area, not for
+  # tweezers. 0402 is PCBway's standard-line default at no upcharge; 0201 is
+  # a caution (low yield, extra cost) and 01005 is a hard block. Only bump to
+  # 0603/0805 for a deliberate reason: power dissipation, voltage standoff, or
+  # an indicator LED you want to actually see.
+  passive_package: "0402"
 
   # Default footprints by component type (KiCad footprint library IDs)
   footprints:
-    resistor:    "Resistor_SMD:R_0805_2012Metric"
-    capacitor:   "Capacitor_SMD:C_0805_2012Metric"
-    inductor:    "Inductor_SMD:L_0805_2012Metric"
-    led:         "LED_SMD:LED_0805_2012Metric"
+    resistor:    "Resistor_SMD:R_0402_1005Metric"
+    capacitor:   "Capacitor_SMD:C_0402_1005Metric"
+    inductor:    "Inductor_SMD:L_0402_1005Metric"
+    led:         "LED_SMD:LED_0805_2012Metric"   # kept large on purpose — indicator visibility
     diode:       "Diode_SMD:D_SOD-123"
 
   # Preferred IC packages (ordered by preference, first match wins)
@@ -121,7 +128,8 @@ connectors:
     - "USB-C"
     - "JST-PH"    # 2.0mm pitch
 
-  # Specific connector parts you stock
+  # Preferred connector parts (PCBway sources these — listed so the skill
+  # reaches for a known-good, footprint-verified part instead of guessing).
   parts:
     # ── JST-SH (1.0mm) ──
     - type: "JST-SH"
@@ -181,11 +189,12 @@ connectors:
 #
 #   preferred — your go-to part per role. The skill reaches for these
 #               first in Stage 2 (and still confirms each is PCBway-
-#               sourceable). Add the parts you've standardized on.
+#               sourceable). Add the parts you've standardized on. This is
+#               the block you'll actually maintain.
 #
-#   on_hand   — parts you physically keep, e.g. to consign to a PCBway
-#               order or for hand-rework. Optional. `qty` is informational
-#               only; PCBway sources fresh unless you explicitly consign.
+#   on_hand   — EXCEPTION PATH. Only for a part PCBway can't source on its
+#               own, which you'll consign to the order. Normally empty —
+#               turnkey sources fresh. `qty` is informational only.
 #
 # (Preferred connectors live in the `connectors` section above, and the
 #  preferred regulator list in `power_rails.preferred_regulators`. Add
@@ -275,13 +284,36 @@ assembly:
     - "DigiKey"     # reliable fallback
     - "Mouser"      # good selection
 
-  # Part-selection rubric thresholds (used by check_pcbway.py and Stage 2).
+  # Part-selection rubric thresholds. These guide Stage 2 part selection
+  # (Claude's reasoning) — they are NOT read by check_pcbway.py, whose
+  # package gate (01005=block, 0201=caution, 0402+=ok, THT=caution, ...) is
+  # hardcoded in scripts/check_pcbway.py. Keep the two in rough agreement.
   rubric:
-    smallest_passive: "0402"     # avoid 0201/01005 unless space-critical
+    smallest_passive: "0402"     # 0402 is the floor; 0201/01005 only if space-critical
     min_bga_pitch_mm: 0.4        # finer pitch raises assembly cost/risk
-    prefer_smt: true             # THT adds per-pin hand/wave-solder cost
+    prefer_smt: true             # SMT-only by default (see tht_policy below)
     avoid_single_source: true    # prefer parts with a second source
     min_stock_qty: 100           # treat lower distributor stock as a risk
+
+  # Through-hole policy. PCBway hand/wave-solders THT at a per-joint upcharge.
+  tht_policy: "connectors_and_mechanical_only"
+  # i.e. THT is acceptable for board-edge connectors, mounting/test points,
+  # and parts with no decent SMT option — never for jellybean passives or
+  # ICs that ship in an SMT package.
+
+  # ── Cost drivers (ADVISORY — Stage 3 surfaces these; you make the call) ──
+  # PCBway turnkey bills roughly: PCB fab + (per unique part: a reel + a
+  # setup/feeder line) + (per joint placed) + (THT hand-solder per pin) +
+  # (X-ray for BGA/CSP). The cheap levers, in order:
+  cost_advisory:
+    consolidate_values: true     # reuse an existing R/C value before adding a
+                                 # new one — each unique value is its own setup
+                                 # line. The parts.preferred value lists ARE the
+                                 # jellybean set; snap to them.
+    minimize_unique_parts: true  # fewer distinct MPNs = fewer feeders + less sourcing risk
+    favor_basic_packages: true   # standard SMT (0402+, SOT/SOIC/QFN) over fine-pitch/BGA
+    note: "advisory only — the skill flags violations in the BOM stage but does
+           not auto-substitute; you review and decide."
 
 # Legacy alias — some prose still says "suppliers"; both map to the same idea.
 # pcb_fab kept for DRC defaults.
