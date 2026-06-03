@@ -20,10 +20,11 @@ import pytest
 # ─── Helpers ────────────────────────────────────────────────────────
 
 def _part(ref, value="", footprint="", part_number="", supplier="",
-          supplier_pn="", notes="", package=""):
+          supplier_pn="", notes="", package="", manufacturer=""):
     return PcbwayPart(reference=ref, value=value, footprint=footprint,
                       part_number=part_number, supplier=supplier,
-                      supplier_pn=supplier_pn, notes=notes, package=package)
+                      supplier_pn=supplier_pn, notes=notes, package=package,
+                      manufacturer=manufacturer)
 
 
 def _ratings(result):
@@ -145,9 +146,10 @@ class TestCheckBom:
     def test_clean_bom_passes(self):
         parts = [
             _part("U1", "AP2112K-3.3", "Package_TO_SOT_SMD:SOT-23-5",
-                  part_number="AP2112K-3.3TRG1", supplier="LCSC", supplier_pn="C51118"),
+                  part_number="AP2112K-3.3TRG1", supplier="LCSC", supplier_pn="C51118",
+                  manufacturer="Diodes Inc"),
             _part("C1", "100nF", "Capacitor_SMD:C_0805_2012Metric",
-                  supplier="LCSC", supplier_pn="C49678"),
+                  supplier="LCSC", supplier_pn="C49678", manufacturer="Samsung"),
         ]
         result = check_bom(parts)
         assert result.passed is True

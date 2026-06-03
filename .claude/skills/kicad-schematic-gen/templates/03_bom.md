@@ -6,16 +6,17 @@
 > **For ICs:** Use the `lib_id` and `footprint` from `check_kicad_library.py --lookup` (captured in Stage 2).
 > **For passives:** Look up the package in `footprint_map.yaml` (e.g., `capacitors["0805"]`).
 > **For preferred parts:** Use footprints/PNs from `preferences.yaml` directly.
+> **Manufacturer:** the part's maker (e.g. Murata, YAGEO, Diodes Inc) — PCBway's BOM form requires it, and it travels with the MPN. For generic passives use your standard passive vendor (e.g. YAGEO). **Keep `Manufacturer` + `Part Number` together — never put a distributor code (LCSC `C…`) in the Part Number column; that goes in Supplier PN.**
 > **Supplier PN:** capture an in-stock distributor PN (LCSC C-number preferred) for every line.
 
 ## BOM
 
-| Ref   | Value        | Part Number     | Package  | KiCad Symbol (lib_id)                    | Footprint (KiCad)                        | In Stock? | Qty | Supplier  | Supplier PN   | Unit Price | Notes        |
-|-------|-------------|-----------------|----------|------------------------------------------|------------------------------------------|-----------|-----|-----------|---------------|------------|--------------|
-| U1    | {value}     | {part}          | {pkg}    | {Library:SymbolName}                     | {Library:FootprintName}                  | {yes/no}  | 1   | {supplier}| {pn}          | {$X.XX}    | {notes}      |
-| C1    | {value}     | {generic/part}  | {pkg}    | Device:C                                 | {footprint}                              | {yes/no}  | 1   | {supplier}| {pn}          | {$X.XX}    | {notes}      |
-| R1    | {value}     | {generic}       | {pkg}    | Device:R                                 | {footprint}                              | {yes/no}  | 1   |           |               |            | {notes}      |
-| J1    | {value}     | {part}          | {type}   | {Library:ConnectorName}                  | {footprint}                              | {yes/no}  | 1   | {supplier}| {pn}          | {$X.XX}    | {notes}      |
+| Ref   | Value        | Manufacturer | Part Number     | Description                  | Package  | KiCad Symbol (lib_id)                    | Footprint (KiCad)                        | In Stock? | Qty | Supplier  | Supplier PN   | Unit Price | Notes        |
+|-------|-------------|--------------|-----------------|------------------------------|----------|------------------------------------------|------------------------------------------|-----------|-----|-----------|---------------|------------|--------------|
+| U1    | {value}     | {mfr}        | {mpn}           | {IC fn, e.g. IC LDO 3.3V}    | {pkg}    | {Library:SymbolName}                     | {Library:FootprintName}                  | {yes/no}  | 1   | {supplier}| {pn}          | {$X.XX}    | {notes}      |
+| C1    | {value}     | {mfr}        | {mpn}           | CAP CER {val} {V} {diel} {pkg}| {pkg}   | Device:C                                 | {footprint}                              | {yes/no}  | 1   | {supplier}| {pn}          | {$X.XX}    | {notes}      |
+| R1    | {value}     | {mfr}        | {mpn}           | RES {val} {tol} {pkg}        | {pkg}    | Device:R                                 | {footprint}                              | {yes/no}  | 1   | {supplier}| {pn}          | {$X.XX}    | {notes}      |
+| J1    | {value}     | {mfr}        | {mpn}           | {connector description}      | {type}   | {Library:ConnectorName}                  | {footprint}                              | {yes/no}  | 1   | {supplier}| {pn}          | {$X.XX}    | {notes}      |
 
 ## Summary
 

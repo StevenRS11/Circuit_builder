@@ -176,6 +176,38 @@ candidate seriously in contention.**
   not replace — the deterministic Stage-7 validators and the `check_requirements`
   traceability pass, both of which still run directly on the main thread.
 
+### E. Stage 9 — per-line BOM verification (answer-blind, live)
+
+The mechanical gates (`check_pcbway.py`) catch *malformed* lines — a distributor
+code in the MPN slot, a package that disagrees with the footprint. They cannot
+catch a **well-formed code that points at the wrong part**: `C914291` is a valid
+LCSC number that resolves to a Zener (not the listed resistor); `C13564` is a
+valid LCSC number that resolves to the 0603 sibling of the listed 0402 thermistor.
+Both passed every offline check and reached PCBway. This recipe is the catch.
+
+- **Worklist:** `python bom_verify.py {project}_03_bom.md --worklist` emits one
+  entry per part that needs a live check — non-passives plus any line the
+  structural gate flagged (specialty `RS`/`RT`/`RV` passives count as non-passive).
+  Add `--all` to also verify clean generic passives.
+- **Hand each subagent:** ONLY the line's claim — `{manufacturer, MPN, value,
+  package, distributor_code}`. **Do not** hand it the datasheet you sourced from,
+  the fact card, or your reasoning. The whole point is an independent second lookup:
+  a verifier that re-derives the part from the web, blind to why you believe the
+  line is right, is the only thing that catches a code resolving to a different part.
+- **It does:** web-verify, actively hunting for a discrepancy — does the MPN exist
+  from that manufacturer; is its real package the claimed one; does its value/rating
+  match; **does the distributor code resolve to *this exact* MPN** (not a sibling);
+  lifecycle (active/NRND/EOL).
+- **Returns** (one JSON object, the `bom_verify.py --report` schema):
+  `{ref, mpn_exists, manufacturer_ok, value_match, package_match,
+  distributor_resolves, lifecycle, verdict: confirmed|mismatch|uncertain, evidence}`.
+- **Main thread:** collect the verdicts into a JSON array and run
+  `bom_verify.py … verdicts.json --report` (exits 1 on any `mismatch`). A `mismatch`
+  is authoritative — **fix the BOM `data` and regenerate**, never wave it through
+  (e.g. correct the distributor code, or swap to the part the code actually is). An
+  `uncertain` is a prompt to look harder, not a pass. Run this **before** generating
+  the upload BOM/gerbers — a confirmed mismatch gates the whole Stage 9 package.
+
 ## How the main thread consumes subagent results
 
 A subagent only adds value if the main thread **honors what it returns**. The whole

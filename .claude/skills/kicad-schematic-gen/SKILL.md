@@ -135,6 +135,13 @@ User description
 │   REVIEW                │     trace widths, thermal pads, hot loops, and
 │   (analyze_pcb_si.py)   │     analog-noise/SI (diff pairs, refs, aggressors).
 │   User fixes before fab │
+└────────────┬────────────┘
+             ▼
+┌─────────────────────────┐
+│ Stage 9: PCBway UPLOAD  │  ← Generate BOM + gerbers + centroid from source.
+│   PACKAGE               │     Structural gate + answer-blind live BOM verify
+│   (bom_verify.py +      │     (catches wrong-part distributor codes) + DRC-gated
+│    generate_*.py)       │     fab export → {project}/PCBway_uploads/.
 └─────────────────────────┘
 ```
 
@@ -906,6 +913,46 @@ diff-pair symmetry do the work. For a high-impedance node, guarding is
 
 ---
 
+## Stage 9: PCBway Upload Package
+
+**Input:** A design that passed Stage 7 (schematic verified) and Stage 8 (DRC-clean routed `.kicad_pcb`).
+
+This stage produces the three artifacts PCBway turnkey needs — **BOM, gerbers+drill, centroid** — each *generated from the source-of-truth files*, never hand-edited. Hand-editing the upload spreadsheet is exactly how stale/wrong cells (an LCSC code sitting in the MPN column, a package that disagrees with the part) reached PCBway before. Everything lands in `{project}/PCBway_uploads/`. Run the four steps in order; each is a gate.
+
+**1. Structural BOM gate (deterministic, offline).**
+```
+python check_pcbway.py {project}_03_bom.md --json      # 0 blocking required
+```
+Catches the offline-detectable defects: a distributor code (LCSC `C…`) in the **Mfg Part #** column, a description where an MPN belongs, the **package field disagreeing with the footprint**, a missing **Manufacturer**. (Connectors/THT and unrecognized footprints are cautions — confirm intended.)
+
+**2. Answer-blind per-line verification (the live gate).** A *well-formed* distributor code can still resolve to the wrong part — only an independent live lookup catches it (this is how `C914291`=Zener and `C13564`=wrong-package-sibling slipped past every offline check).
+```
+python bom_verify.py {project}_03_bom.md --worklist     # → lines needing a live check
+```
+For each worklist line, spawn an **answer-blind subagent** (recipe E in `references/subagents.md`) given ONLY the claim `{manufacturer, MPN, value, package, distributor code}`; it web-verifies independently and returns a verdict. Collect the verdicts JSON, then:
+```
+python bom_verify.py {project}_03_bom.md verdicts.json --report -o PCBway_uploads/verification_report.md
+```
+**0 mismatches required** — a `mismatch` is a confirmed wrong/inconsistent part and blocks the upload. Coverage is non-passives + any structurally-flagged line (`--all` also verifies clean passives).
+
+**3. Generate the PCBway BOM (pure transform).**
+```
+python generate_pcbway_bom.py {project}_03_bom.md --output-dir PCBway_uploads
+```
+`bom.md` → PCBway's 9-column upload form (real Manufacturer + Mfg Part # on **every** line, passives included; LCSC code in the Notes column; identical parts grouped). Fix data in `bom.md`, never in the xlsx.
+
+**4. Generate the fab outputs (DRC-gated).**
+```
+python generate_fab_outputs.py {project}.kicad_pcb --output-dir PCBway_uploads
+```
+Refuses to emit fab files from a board that fails DRC; auto-detects the copper stack (2/4/N-layer); exports gerbers + Excellon drill + centroid CSV; zips the gerbers.
+
+**Output:** `{project}/PCBway_uploads/` — `{project}_PCBway_BOM.xlsx`, `gerbers/` + `{project}_gerbers.zip`, `{project}_centroid.csv`, `verification_report.md`, `fab_drc_report.json`.
+
+**Gate:** 0 structural blocks, **0 verification mismatches**, DRC clean. A mismatch sends you back to fix `bom.md` (or the board) and **regenerate** — the upload is always a fresh generation, never a manual spreadsheet edit.
+
+---
+
 ## Final Delivery
 
 Once Stage 7 passes, deliver to the user:
@@ -916,7 +963,8 @@ Once Stage 7 passes, deliver to the user:
 4. **`{project_name}_04c_analysis.md`** — DC analysis report (from Stage 5)
 5. **`{project_name}_07_review.md`** — Design review results
 6. **`{project_name}_08_layout_review.md`** — PCB layout review
-7. **Summary message** including:
+7. **`{project_name}/PCBway_uploads/`** — the Stage 9 upload package (PCBway BOM xlsx, gerbers+drill zip, centroid CSV, `verification_report.md`) — generated from source, 0 verification mismatches
+8. **Summary message** including:
    - What was built and key design decisions
    - PCBway sourcing status — any lines still needing an in-stock distributor PN, or flagged by the rubric
    - Things to verify in KiCad before layout

@@ -168,12 +168,71 @@ def _scan_notes(notes):
     return hits
 
 
+# ─── Structural line checks (the defect classes that reached PCBway) ──
+#
+# These are the deterministic, offline catches for the bugs found in the field:
+#   - an LCSC code sitting in the Mfg Part # column (PCBway sourced the wrong part)
+#   - a description ("56k 5% 0805") where a real MPN belongs
+#   - the package field disagreeing with the footprint's size token
+#   - a missing Manufacturer (PCBway's form requires one per line)
+# They do NOT replace the live web check (a *well-formed* code can still resolve
+# to the wrong part — that needs the answer-blind verifier); they're the cheap
+# first net.
+
+_IMPERIAL_SIZES = ("01005", "0201", "0402", "0603", "0805",
+                   "1206", "1210", "1812", "2010", "2512")
+
+
+def looks_like_distributor_code(s):
+    """True for a clear distributor catalog code (LCSC 'C#####') in the MPN slot.
+
+    Kept narrow on purpose — only the unambiguous LCSC 'C' + digits form — so it
+    never false-flags a real MPN that merely starts with a letter+digits.
+    """
+    return bool(re.match(r"^C\d{3,}$", (s or "").strip()))
+
+
+def looks_like_description(s):
+    """A real MPN has no interior spaces; a description ('56k 5% 0805') does."""
+    s = (s or "").strip()
+    return bool(s) and " " in s
+
+
+def footprint_size_token(footprint):
+    """Imperial size code (e.g. '0805') from a passive footprint, else None."""
+    m = re.search(r"_(\d{4,5})_\d{3,4}Metric", footprint or "")
+    return m.group(1) if m else None
+
+
+def package_size_token(package):
+    """The package field if it's a bare imperial size code, else None."""
+    pkg = (package or "").strip()
+    return pkg if pkg in _IMPERIAL_SIZES else None
+
+
+def verification_worklist(parts, include_passives=False):
+    """Lines that warrant a live (answer-blind) web check.
+
+    Policy (see SKILL.md Stage 9): non-passives always, plus any line the
+    structural gate flagged. Generic passives with a clean MPN are skipped unless
+    include_passives=True. Run check_bom(parts) first so .flags are populated.
+    """
+    work = []
+    for p in parts:
+        passive = is_generic_passive(p.reference, p.footprint)
+        if (not passive) or p.flags or include_passives:
+            work.append(p)
+    return work
+
+
 # ─── Data model ───────────────────────────────────────────────────────
 
 @dataclass
 class PcbwayPart:
     reference: str
     value: str = ""
+    manufacturer: str = ""     # part maker (Murata, YAGEO, ...) — PCBway form requires it
+    description: str = ""      # human-readable spec (e.g. "CAP CER 47uF 25V X5R 1210")
     part_number: str = ""      # manufacturer part number (MPN)
     package: str = ""
     footprint: str = ""
@@ -214,7 +273,9 @@ class PcbwayResult:
 _COLUMN_ALIASES = {
     "ref": "reference", "reference": "reference",
     "value": "value",
+    "manufacturer": "manufacturer", "mfr": "manufacturer", "mfg": "manufacturer", "maker": "manufacturer",
     "part number": "part_number", "part": "part_number", "mpn": "part_number",
+    "description": "description", "description / value": "description", "desc": "description",
     "manufacturer part number": "part_number", "part #": "part_number",
     "package": "package", "pkg": "package",
     "supplier": "supplier",
@@ -308,6 +369,8 @@ def load_bom_for_pcbway(md_text):
         parts.append(PcbwayPart(
             reference=ref,
             value=clean("value"),
+            manufacturer=clean("manufacturer"),
+            description=clean("description"),
             part_number=clean("part_number"),
             package=clean("package"),
             footprint=clean("footprint"),
@@ -396,6 +459,46 @@ def check_bom(parts):
                 message=f"{ref}: {msg}",
                 reference=ref,
             ))
+
+        # ── Mfg Part # hygiene — PCBway sources by the manufacturer part number ──
+        mpn = part.part_number.strip()
+        if looks_like_distributor_code(mpn):
+            part.rating = _bump(part.rating, "block")
+            part.flags.append("distributor code in Mfg Part # column")
+            issues.append(PcbwayIssue(
+                severity="error", check_name="distributor_code_as_mpn",
+                message=(f"{ref}: Mfg Part # '{mpn}' is a distributor catalog code (LCSC), "
+                         f"not a manufacturer part number. PCBway will source the wrong part — "
+                         f"put the real MPN here and the LCSC code in the Notes/supplier column."),
+                reference=ref))
+        elif mpn and looks_like_description(mpn):
+            part.rating = _bump(part.rating, "caution")
+            part.flags.append("Mfg Part # looks like a description, not an MPN")
+            issues.append(PcbwayIssue(
+                severity="warning", check_name="mpn_not_real",
+                message=(f"{ref}: Mfg Part # '{mpn}' looks like a description, not a manufacturer "
+                         f"part number — PCBway wants an exact MPN for every line (passives included)."),
+                reference=ref))
+
+        # ── package field ↔ footprint size token (passive internal drift) ──
+        fps, pks = footprint_size_token(part.footprint), package_size_token(part.package)
+        if fps and pks and fps != pks:
+            part.rating = _bump(part.rating, "block")
+            part.flags.append(f"package {part.package} != footprint size {fps}")
+            issues.append(PcbwayIssue(
+                severity="error", check_name="package_mismatch",
+                message=(f"{ref}: package field '{part.package}' disagrees with the footprint "
+                         f"size '{fps}' ({part.footprint}). Make them agree."),
+                reference=ref))
+
+        # ── Manufacturer presence (PCBway form requires it) ──
+        if not part.manufacturer.strip():
+            part.rating = _bump(part.rating, "caution")
+            part.flags.append("no Manufacturer")
+            issues.append(PcbwayIssue(
+                severity="warning", check_name="missing_manufacturer",
+                message=f"{ref} ({part.value}): no Manufacturer — PCBway's BOM form requires one per line.",
+                reference=ref))
 
     has_errors = any(i.severity == "error" for i in issues)
     return PcbwayResult(passed=not has_errors, issues=issues, parts=parts)
@@ -487,6 +590,8 @@ def format_result_json(result, bom_path=None):
             {
                 "reference": p.reference,
                 "value": p.value,
+                "manufacturer": p.manufacturer,
+                "description": p.description,
                 "part_number": p.part_number,
                 "package": p.package,
                 "footprint": p.footprint,
