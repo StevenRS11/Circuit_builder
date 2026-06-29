@@ -10,6 +10,7 @@
 
 # ...except the skill, the project docs, and git meta files.
 !.claude/
+!README.md
 !CLAUDE.md
 !improvements.md
 !.gitignore
