@@ -178,6 +178,39 @@ Prefer parts from `parts.preferred` and the `connectors`/`power_rails.preferred_
 
 Also read `references/kicad_format.md` for the S-expression format reference.
 
+### Using your own libraries (user-supplied symbols & footprints)
+
+The skill is **not limited to KiCad's built-in libraries.** `check_kicad_library.py`
+discovers every library the user has registered and searches them all, returning the
+**real `lib_id`** (with its true nickname) and the symbol's **actual pins**. Libraries
+are discovered, in increasing precedence (later wins a nickname clash):
+
+1. KiCad's built-in install (`<kicad_root>/symbols/*.kicad_sym`),
+2. the **global** `sym-lib-table` / `fp-lib-table` in the KiCad config dir — where the
+   consolidated **`Custom`** lib and one-off libs (e.g. `ESP32S3`) are registered,
+3. the **project** `sym-lib-table` / `fp-lib-table` — pass `--project-dir {project_dir}`,
+4. any library pointed at explicitly: `--sym-lib [NICK=]PATH` / `--fp-lib [NICK=]PATH`.
+
+```bash
+# see everything that will be searched
+python check_kicad_library.py --list-libs --project-dir {project_dir}
+# resolve a part against built-ins + user libs (incl. project)
+python check_kicad_library.py NAU7802 --lookup --project-dir {project_dir}
+# point at an arbitrary library the user hands you
+python check_kicad_library.py MYPART --lookup --sym-lib MyLib=/path/to/My.kicad_sym
+```
+
+**Always pass `--project-dir {project_dir}`** when working inside a project so its local
+`Library` resolves. When a part resolves from a user library (`from_user_library: true`),
+its pins are authoritative: use the returned `lib_id` and pins verbatim and treat the
+fact card's pinout as verified — there is no hallucination risk because you are reading
+the actual symbol, not reconstructing it.
+
+**To add a new vendor part** (SnapEDA / Ultra Librarian / manufacturer zip), use the
+**`kicad-import-lib`** skill. It installs the symbol + footprint + 3D model into the
+`Custom` libraries this resolver already searches; re-run the lookup afterwards and the
+part is a first-class citizen.
+
 ---
 
 ## Stage 1: Specification
@@ -252,16 +285,22 @@ carries intrinsic fields forward **from the cards**, not by retyping. See recipe
 3. **For every candidate IC**, check KiCad library availability:
    ```python
    from check_kicad_library import lookup_part
-   result = lookup_part("AP2112K-3.3")
+   result = lookup_part("AP2112K-3.3", project_dir="{project_dir}")
    # result["found"] → True/False
    # result["lib_id"] → "Regulator_Linear:AP2112K-3.3"
    # result["footprint"] → "Package_TO_SOT_SMD:SOT-23-5"
    # result["footprint_exists"] → True/False
+   # result["from_user_library"] → True if it came from one of YOUR libs
    # result["pins"] → [{number, name, type}, ...]
    ```
-   Or from CLI: `python check_kicad_library.py <part_number> --lookup --json`
-   - If `found: true` and `footprint_exists: true` → part is ready to use. Record the `lib_id` and `footprint`.
-   - If `found: false` → flag it. The user will need to source the symbol/footprint from SnapEDA, Ultra Librarian, or the manufacturer. This is a significant friction point — **prefer parts that are in KiCad's built-in libraries.**
+   Or from CLI: `python check_kicad_library.py <part_number> --lookup --json --project-dir {project_dir}`
+   - The resolver searches **every library the user has registered** — KiCad's
+     built-ins **and** the user's own (the consolidated `Custom` lib, per-part libs
+     like `ESP32S3`, the project's `Library`, plus anything passed via `--sym-lib`).
+     See **"Using your own libraries"** below.
+   - If `found: true` and `footprint_exists: true` → part is ready to use. Record the `lib_id` and `footprint` **verbatim** (the `lib_id` carries the real nickname, e.g. `Custom:NAU7802`).
+   - If `from_user_library: true` → the symbol *is* the authoritative pin source for that part; its `pins` may seed the fact card as `pinout_verified` (no datasheet re-derivation needed for pin number/name — see Stage 4).
+   - If `found: false` → flag it. The user will need to source the symbol/footprint from SnapEDA, Ultra Librarian, or the manufacturer, then install it with the **`kicad-import-lib`** skill (which drops it into the `Custom` lib the resolver already searches). Re-run the lookup afterwards. Prefer parts already in a built-in **or** a user library.
 4. Confirm stock at a distributor PCBway sources from, in `assembly.distributor_order` order, via web search:
    - `site:lcsc.com "{part number}"` (LCSC first — cheapest, widest PCBway catalog)
    - `site:digikey.com "{part number}" in stock`
@@ -589,9 +628,21 @@ and placement + IC pin-side arrangement in the layout YAML. Nothing is retyped.
         **right**, main supply on **top**, grounds on the **bottom**; keep differential pairs
         adjacent; keep enable/config pins near what they control.
 
-   c. **Parts not in the symbol libraries** (e.g. NAU7802): set lib_id `Custom:<PART>`, take the
-      footprint from the package / `footprint_map.yaml`, and author the pins from the datasheet —
-      the proven custom-symbol pattern (worked example in `references/layout_authoring.md`).
+   c. **Parts not in KiCad's built-in libraries** (e.g. NAU7802) — the split is *"does the
+      symbol already exist in any registered library?"* (`check_kicad_library.py --lookup
+      --project-dir {project_dir}`):
+      - **`found: true`** (built-in or user lib, e.g. `Custom:NAU7802` from `kicad-import-lib`) →
+        **embed it as-is.** Mark the `symbols:` entry `from_library: true` and the engine embeds
+        the real symbol — its actual drawing *and* real pin geometry, exactly like KiCad placing
+        the part. Author **no pins and no `side`/`index`** (that arrangement belongs to the symbol).
+        Pass `--project-dir {project_dir}` / `--sym-lib` to `generate_from_data.py` so it resolves.
+      - **`found: false`** (resolves nowhere) → author the symbol by hand: lib_id `Custom:<PART>`,
+        footprint from the package / `footprint_map.yaml`, and pins from the datasheet with
+        `side`/`index` grouping. This is the **only** case where `side`/`index` is your judgment.
+        Better still, install a vendor symbol with **`kicad-import-lib`** and it becomes the first
+        case.
+
+      See the two worked examples (Case 1 / Case 2) in `references/layout_authoring.md`.
 
    d. **Author `placements:`** — a grid by functional block (ICs on a band, passives banded
       below, connectors at edges). Rotate multi-pin connectors so their stubs don't collide

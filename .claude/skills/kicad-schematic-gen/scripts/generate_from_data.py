@@ -75,6 +75,8 @@ class SymbolDef:
     pins: list = field(default_factory=list)  # (number, name, type, side, index)
     ref_prefix: str = "U"
     width: float = 10.16
+    from_library: bool = False  # embed the real library symbol verbatim (use as-is)
+    block: str = ""             # resolved/inline (symbol ...) s-expr for embedding
 
 
 @dataclass
@@ -127,6 +129,8 @@ def _parse_layout(raw: dict) -> Layout:
             lib_id=lib_id, pins=pins,
             ref_prefix=sym.get("ref_prefix", "U"),
             width=float(sym.get("width", 10.16)),
+            from_library=bool(sym.get("from_library", False)),
+            block=sym.get("block", "") or "",
         )
     return lay
 
@@ -214,6 +218,12 @@ def _register_symbols(sch: KicadSchematic, layout: Layout):
                 f"lib_id '{lib_id}' is not a known passive/connector and has no "
                 f"entry in the layout 'symbols:' section (need pins to build it)"
             ])
+        if sym.block:
+            # Use the real library symbol as-is (drawing + real pin geometry).
+            sch.add_lib_symbol_from_block(
+                lib_id, sym.block, ref_prefix=sym.ref_prefix,
+            )
+            continue
         sch.add_lib_symbol_ic(
             lib_id, pins=sym.pins, ref_prefix=sym.ref_prefix,
             value=lib_id.split(":")[-1], width=sym.width,
@@ -223,14 +233,60 @@ def _register_symbols(sch: KicadSchematic, layout: Layout):
         sch.add_lib_symbol_power(name)
 
 
+def _resolve_library_symbols(layout: Layout, libraries=None):
+    """Ensure every ``from_library`` symbol has an embeddable block + real pins.
+
+    Loads each from-library symbol's block from the registered libraries (unless an
+    inline ``block:`` was supplied), parses its real pins, and stores both back on
+    the SymbolDef so the pin-set gate checks against the *actual* pins. Raises
+    EngineError if a block can't be found.
+    """
+    errors = []
+    need_lookup = [s for s in layout.symbols.values()
+                   if s.from_library and not s.block]
+    if need_lookup and libraries is None:
+        try:
+            from check_kicad_library import build_library_set
+            libraries = build_library_set()
+        except Exception as e:  # noqa: BLE001
+            raise EngineError([
+                f"cannot resolve from_library symbols (no libraries available): {e}"
+            ])
+    for sym in layout.symbols.values():
+        if not sym.from_library:
+            continue
+        if not sym.block:
+            from check_kicad_library import load_symbol_block
+            block = load_symbol_block(sym.lib_id, libraries=libraries)
+            if not block:
+                errors.append(
+                    f"{sym.lib_id}: from_library set but no matching symbol in the "
+                    f"registered libraries (pass --project-dir/--sym-lib, or install "
+                    f"it with the kicad-import-lib skill)"
+                )
+                continue
+            sym.block = block
+        # Real pins (number/name/type) for the pin-set gate.
+        pins, _gfx, _meta = KicadSchematic.parse_symbol_block(sym.block)
+        sym.pins = [(p.number, p.name, p.pin_type) for p in pins]
+    if errors:
+        raise EngineError(errors)
+
+
 def build_schematic(netlist: IntendedNetlist, bom_entries: list, layout: Layout,
-                    uuid_seed=None) -> KicadSchematic:
+                    uuid_seed=None, libraries=None) -> KicadSchematic:
     """Assemble a KicadSchematic from the three data sources.
 
     Raises EngineError (with aggregated messages) on any structural problem.
     Does NOT run the validators — call self_verify() / generate() for that.
+
+    ``libraries`` is an optional check_kicad_library.LibrarySet used to resolve any
+    ``from_library`` symbols (parts embedded verbatim from a registered library).
     """
     bom_by_ref = {e.reference: e for e in bom_entries}
+
+    # Resolve embedded library symbols before the gate so it sees their real pins.
+    _resolve_library_symbols(layout, libraries)
 
     errors = _preflight(netlist, bom_by_ref, layout)
     if errors:
@@ -312,15 +368,26 @@ def self_verify(netlist: IntendedNetlist, bom_entries: list, sch: KicadSchematic
 
 # ─── Top-level orchestration ─────────────────────────────────────────
 def generate(netlist_path, bom_path, layout_path, out_path=None,
-             uuid_seed=None, strict=False) -> GenerateResult:
-    """Load the three data files, build, self-verify, and save iff clean."""
+             uuid_seed=None, strict=False, libraries=None,
+             project_dir=None, extra_sym=None) -> GenerateResult:
+    """Load the three data files, build, self-verify, and save iff clean.
+
+    For any ``from_library`` symbol, the real library symbol is embedded verbatim;
+    pass ``libraries`` (a LibrarySet) or ``project_dir`` / ``extra_sym`` so it can be
+    located beyond KiCad's built-ins.
+    """
     netlist = load_intended_netlist(netlist_path)
     with open(bom_path, "r", encoding="utf-8") as f:
         bom_entries = load_bom_from_markdown(f.read())
     layout = load_layout(layout_path)
 
+    if libraries is None and (project_dir or extra_sym):
+        from check_kicad_library import build_library_set
+        libraries = build_library_set(project_dir=project_dir, extra_sym=extra_sym)
+
     try:
-        sch = build_schematic(netlist, bom_entries, layout, uuid_seed=uuid_seed)
+        sch = build_schematic(netlist, bom_entries, layout,
+                              uuid_seed=uuid_seed, libraries=libraries)
     except EngineError as e:
         return GenerateResult(passed=False, errors=e.messages, warnings=[], sch=None)
 
@@ -342,11 +409,16 @@ def _main(argv=None):
     ap.add_argument("--strict", action="store_true", help="treat warnings as errors")
     ap.add_argument("--uuid-seed", type=int, default=None,
                     help="seed UUIDs for reproducible output")
+    ap.add_argument("--project-dir",
+                    help="project dir whose lib-table to search for from_library symbols")
+    ap.add_argument("--sym-lib", action="append", metavar="[NICK=]PATH",
+                    help="extra symbol library for from_library symbols; repeatable")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     args = ap.parse_args(argv)
 
     res = generate(args.netlist, args.bom, args.layout, out_path=args.output,
-                   uuid_seed=args.uuid_seed, strict=args.strict)
+                   uuid_seed=args.uuid_seed, strict=args.strict,
+                   project_dir=args.project_dir, extra_sym=args.sym_lib)
 
     if args.json:
         print(json.dumps({

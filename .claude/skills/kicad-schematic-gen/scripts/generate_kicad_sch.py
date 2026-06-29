@@ -727,6 +727,163 @@ class KicadSchematic:
         )
         self.lib_symbols[lib_id] = sym
 
+    # ─── Embed a real library symbol verbatim (use as-is) ────────────
+
+    @staticmethod
+    def _balanced_blocks(text, keyword):
+        """Yield each balanced ``(keyword ...)`` group in *text*.
+
+        String- and depth-aware so quoted parens and nesting don't confuse the
+        scan. ``keyword`` is matched on a word boundary, so ``pin`` does not match
+        ``pin_names`` / ``pin_numbers``.
+        """
+        out = []
+        for m in re.finditer(r'\(' + re.escape(keyword) + r'\b', text):
+            i = m.start()
+            depth = 0
+            in_str = esc = False
+            while i < len(text):
+                c = text[i]
+                if in_str:
+                    if esc:
+                        esc = False
+                    elif c == '\\':
+                        esc = True
+                    elif c == '"':
+                        in_str = False
+                else:
+                    if c == '"':
+                        in_str = True
+                    elif c == '(':
+                        depth += 1
+                    elif c == ')':
+                        depth -= 1
+                        if depth == 0:
+                            out.append(text[m.start():i + 1])
+                            break
+                i += 1
+        return out
+
+    @classmethod
+    def parse_symbol_block(cls, block):
+        """Parse a top-level ``.kicad_sym`` symbol block.
+
+        Returns (pins, graphics, meta):
+          * pins — list[Pin] copied **verbatim** from the symbol (number/name/type
+            and the real symbol-space at/length/angle). These are authoritative.
+          * graphics — list[str] of graphic-primitive s-exprs (rectangle, polyline,
+            circle, arc, bezier, text) defining the symbol's drawn shape.
+          * meta — dict: name, ref_prefix, value, footprint, pin_names_offset,
+            pin_names_hide, pin_numbers_hide, units (distinct unit count).
+        """
+        m = re.search(r'\(symbol\s+"([^"]+)"', block)
+        name = m.group(1) if m else ""
+
+        pins = []
+        for pb in cls._balanced_blocks(block, "pin"):
+            tm = re.match(r'\(pin\s+(\S+)\s+(\S+)', pb)
+            at = re.search(r'\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\)', pb)
+            ln = re.search(r'\(length\s+(-?[\d.]+)\)', pb)
+            nm = re.search(r'\(name\s+"((?:[^"\\]|\\.)*)"', pb)
+            num = re.search(r'\(number\s+"((?:[^"\\]|\\.)*)"', pb)
+            if not (tm and at and num):
+                continue
+            pins.append(Pin(
+                number=num.group(1),
+                name=nm.group(1) if nm else "~",
+                pin_type=tm.group(1),
+                x=float(at.group(1)),
+                y=float(at.group(2)),
+                length=float(ln.group(1)) if ln else 2.54,
+                rotation=int(round(float(at.group(3)))),
+            ))
+
+        graphics = []
+        for kw in ("arc", "circle", "rectangle", "polyline", "bezier", "text"):
+            graphics.extend(cls._balanced_blocks(block, kw))
+
+        def _prop(key):
+            mm = re.search(r'\(property\s+"' + key + r'"\s+"((?:[^"\\]|\\.)*)"', block)
+            return mm.group(1) if mm else None
+
+        pn = cls._balanced_blocks(block, "pin_names")
+        pin_names_offset = 1.016
+        pin_names_hide = False
+        if pn:
+            om = re.search(r'\(offset\s+(-?[\d.]+)\)', pn[0])
+            if om:
+                pin_names_offset = float(om.group(1))
+            pin_names_hide = bool(re.search(r'\bhide\b', pn[0]) or
+                                  re.search(r'\(hide\s+yes\)', pn[0]))
+        pnum = cls._balanced_blocks(block, "pin_numbers")
+        pin_numbers_hide = bool(pnum and (re.search(r'\bhide\b', pnum[0]) or
+                                          re.search(r'\(hide\s+yes\)', pnum[0])))
+
+        # distinct unit count from sub-symbol names "<name>_<unit>_<style>"
+        units = set()
+        for um in re.finditer(r'\(symbol\s+"' + re.escape(name) + r'_(\d+)_\d+"', block):
+            units.add(int(um.group(1)))
+        units.discard(0)  # unit 0 holds common (shared) graphics
+
+        # The Reference property may carry a baked-in instance number (e.g. "U2");
+        # the lib-symbol wants just the prefix.
+        ref_prefix = re.sub(r'\d+$', '', _prop("Reference") or "U") or "U"
+        meta = {
+            "name": name,
+            "ref_prefix": ref_prefix,
+            "value": _prop("Value"),
+            "footprint": _prop("Footprint"),
+            "pin_names_offset": pin_names_offset,
+            "pin_names_hide": pin_names_hide,
+            "pin_numbers_hide": pin_numbers_hide,
+            "units": len(units) if units else 1,
+        }
+        return pins, graphics, meta
+
+    def add_lib_symbol_from_block(self, lib_id, block, ref_prefix=None,
+                                  value=None, footprint=None):
+        """Embed a real library symbol **as-is** instead of synthesizing one.
+
+        Use this when the part already exists in a registered library (built-in or
+        a user/imported lib): the symbol's own drawing and **real pin geometry** are
+        preserved, so the result matches what KiCad draws when you place the part —
+        no ``side``/``index`` arrangement needed (that judgment only applies to
+        symbols Claude must invent).
+
+        ``block`` is the top-level ``(symbol "..." ...)`` text from the ``.kicad_sym``
+        file (e.g. from ``check_kicad_library.load_symbol_block``). Returns the
+        LibSymbol. Raises ValueError if no pins parse out.
+        """
+        pins, graphics, meta = self.parse_symbol_block(block)
+        if not pins:
+            raise ValueError(f"no pins parsed from symbol block for {lib_id}")
+        name = lib_id.split(':')[-1] if ':' in lib_id else lib_id
+
+        gfx_lines = [f'      (symbol "{name}_0_1"']
+        for g in graphics:
+            g = g.replace('\t', '  ')
+            gfx_lines.extend('        ' + ln for ln in g.split('\n'))
+        gfx_lines.append('      )')
+        graphics_sexpr = '\n'.join(gfx_lines) if graphics else ""
+
+        props = {
+            "Reference": ref_prefix or meta["ref_prefix"],
+            "Value": value or meta["value"] or name,
+            "Footprint": footprint or meta["footprint"] or "",
+            "Datasheet": "~",
+        }
+        sym = LibSymbol(
+            lib_id=lib_id,
+            properties=props,
+            pins=pins,
+            graphics_sexpr=graphics_sexpr,
+            pin_names_offset=meta["pin_names_offset"],
+            pin_names_hide=meta["pin_names_hide"],
+            pin_numbers_hide=meta["pin_numbers_hide"],
+        )
+        self.lib_symbols[lib_id] = sym
+        return sym
+
     # ─── Reference auto-assignment ───────────────────────────────────
 
     def auto_reference(self, prefix):

@@ -101,11 +101,46 @@ used as an output — but keep `number`/`name` as looked up.)
 
 ---
 
-## Worked example B — a custom IC not in the libraries (NAU7802)
+## Worked example B — an IC not in KiCad's built-ins (NAU7802)
 
-`check_kicad_library NAU7802 --lookup` returns `found: false`. The **package is still standard**
-(SOIC-16 → `Package_SO:SOIC-16_3.9x9.9mm_P1.27mm`, or look it up in `footprint_map.yaml`), so put
-the footprint in the BOM and **author the symbol from the datasheet** with a `Custom:` lib_id:
+**First, look it up against every registered library** — built-ins *and* the user's own:
+
+```bash
+python check_kicad_library.py NAU7802 --lookup --project-dir {project_dir}
+```
+
+There are two cases. The split is **"does the symbol already exist in a library?"** — and if
+it does, you use it *as-is* and author no pins at all.
+
+### Case 1 — it resolves in a library (the common case): embed it verbatim
+
+If the lookup returns `found: true` (e.g. `lib_id: Custom:NAU7802`, typically with
+`from_user_library: true` for a part installed via `kicad-import-lib`), the symbol **is** the
+authoritative source — its real drawing *and* its real pin geometry. **Do not re-author the
+pins, and do not assign `side`/`index`.** Just mark the `symbols:` entry `from_library: true`
+and the engine embeds the actual symbol, exactly like KiCad does when you drop the part on the
+canvas:
+
+```yaml
+symbols:
+  "Custom:NAU7802":
+    from_library: true          # engine embeds the real symbol as-is
+```
+
+The engine resolves the symbol from the registered libraries at build time — pass
+`--project-dir {project_dir}` (and any `--sym-lib`) to `generate_from_data.py` so it can find
+it. The pin-set gate checks the netlist against the symbol's **real** pins. (For a fully
+self-contained build you may instead inline the raw `(symbol …)` block under a `block:` key, but
+`from_library: true` is the normal path.) There is **no `side`/`index` judgment here** — the
+arrangement belongs to whoever drew the symbol.
+
+### Case 2 — it resolves nowhere (`found: false`): author the symbol from the datasheet
+
+Only when the part exists in *no* library do you build it by hand. The **package is still
+standard** (SOIC-16 → `Package_SO:SOIC-16_3.9x9.9mm_P1.27mm`, or look it up in
+`footprint_map.yaml`), so put the footprint in the BOM and author the pins with a `Custom:`
+lib_id. **This is the only case where `side`/`index` is Claude's job** (and a good reason to
+instead install a vendor symbol with `kicad-import-lib`, turning it into Case 1):
 
 ```yaml
 symbols:
@@ -131,9 +166,10 @@ symbols:
       - ["9",  "DVSS",  "power_in",      "bottom", 2]
 ```
 
-Note the judgment a script can't make well: both differential input pairs grouped left and in
-polarity order, I²C grouped right, all three grounds on the bottom. This is why the symbol is
-Claude-authored.
+Here the `number`/`name`/`type` come from the datasheet, and the `side`/`index` grouping is the
+judgment a script can't make well — both differential input pairs grouped left and in polarity
+order, I²C grouped right, all three grounds on the bottom. That arrangement is Claude-authored
+*only because the symbol didn't already exist*; a real library symbol (Case 1) carries its own.
 
 ---
 

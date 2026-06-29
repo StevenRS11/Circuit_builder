@@ -47,8 +47,26 @@ placements:
   #   ^ Rotating a multi-pin connector so pins face DOWN gives each pin its own
   #     drop column — use this when a GND tie would otherwise cross a sibling stub.
 
-# ── Symbols: IC / custom symbol definitions (pin-side arrangement). ──────────
-# Only ICs and named-pin parts go here. Each pin is [number, name, type, side, index]:
+# ── Symbols: IC / custom symbol definitions. ────────────────────────────────
+# Only ICs and named-pin parts go here. There are TWO ways to define one:
+#
+# (A) from_library — the symbol ALREADY EXISTS in a registered library (a KiCad
+#     built-in, or a user/imported lib like `Custom:`). USE IT AS-IS: the engine
+#     embeds the real symbol (its drawing + real pin geometry), exactly like KiCad
+#     placing the part. Author NO pins and NO side/index. This is the normal path
+#     for any part that resolves via `check_kicad_library.py --lookup`.
+#         "Custom:NAU7802":
+#           from_library: true
+#     Pass `--project-dir <dir>` (and `--sym-lib NICK=PATH` for an arbitrary lib)
+#     to generate_from_data.py so the engine can locate it. For a fully
+#     self-contained build, inline the raw symbol with `block: |` instead.
+#
+# (B) hand-authored pins — ONLY for a part that exists in NO library. Give each
+#     pin as [number, name, type, side, index] (below). side/index is YOUR layout
+#     judgment and applies only in this case. (Prefer installing a vendor symbol
+#     with the kicad-import-lib skill, which turns it into case A.)
+#
+# Each hand-authored pin is [number, name, type, side, index]:
 #   number : pin number/name as it appears in the netlist `pins:` array (must match exactly)
 #   name   : pin label shown on the symbol (from the datasheet / KiCad library)
 #   type   : power_in | power_out | input | output | bidirectional | passive |
@@ -60,6 +78,10 @@ placements:
 # `components[ref].pins` set and errors on any mismatch — this catches pin typos
 # before generation.
 symbols:
+  # (A) embed a real library symbol verbatim — no pins, no side/index:
+  "Custom:NAU7802":
+    from_library: true
+  # (B) hand-authored symbol for a part in no library:
   "Regulator_Linear:AP2112K-3.3":
     ref_prefix: U
     width: 12.7
