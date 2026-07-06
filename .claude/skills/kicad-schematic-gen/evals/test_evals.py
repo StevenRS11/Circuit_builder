@@ -28,6 +28,7 @@ from check_requirements import (
     load_spec_requirements, load_traceability, check_requirements,
 )
 from cross_check_bom import load_bom_from_markdown
+from check_pcbway import load_bom_for_pcbway, check_bom_mpn_ready
 
 _CORPUS_SYNTH = os.path.join(_HERE, "corpus", "synthetic")
 _REGRESSION = os.path.join(_HERE, "regression")
@@ -126,14 +127,22 @@ _NEG_CASES = _subdirs(_REGRESSION, "expect.yaml")
 def test_negative_case_gate_bites(case_dir):
     exp = _load_yaml(os.path.join(case_dir, "expect.yaml"))
     assert exp.get("kind") == "negative", "non-negative case under regression/"
-    assert exp.get("grader") == "check_requirements", \
-        "only check_requirements negatives are wired today"
+    grader = exp.get("grader")
 
-    spec = load_spec_requirements(os.path.join(case_dir, "spec.md"))
-    trace = load_traceability(os.path.join(case_dir, "traceability.yaml"))
-    bom = load_bom_from_markdown(
-        open(os.path.join(case_dir, "bom_flat.md"), encoding="utf-8").read())
-    result = check_requirements(spec, trace, bom)
+    if grader == "check_requirements":
+        spec = load_spec_requirements(os.path.join(case_dir, "spec.md"))
+        trace = load_traceability(os.path.join(case_dir, "traceability.yaml"))
+        bom = load_bom_from_markdown(
+            open(os.path.join(case_dir, "bom_flat.md"), encoding="utf-8").read())
+        result = check_requirements(spec, trace, bom)
+    elif grader == "check_pcbway":
+        # The schematic-MPN gate, exercised on the pre-generation flat BOM (a bad
+        # MPN in the BOM is what bakes into an unresolvable symbol MPN).
+        parts = load_bom_for_pcbway(
+            open(os.path.join(case_dir, "bom_flat.md"), encoding="utf-8").read())
+        result = check_bom_mpn_ready(parts)
+    else:
+        pytest.fail(f"unwired negative grader: {grader!r}")
 
     want = exp.get("expect", {})
     assert result.passed is want.get("passed", False), \

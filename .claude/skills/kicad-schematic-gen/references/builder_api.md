@@ -72,6 +72,33 @@ sch.place_component("Device:C", "C1", "10uF", 75, 55,
     footprint="Capacitor_SMD:C_0805_2012Metric")
 ```
 
+#### Baking BOM identity fields (PCBWay plugin contract)
+
+`place_component()` also takes `in_bom=`, `on_board=`, `dnp=` (native symbol
+attributes) and forwards any extra keyword args as hidden `(property "K" "V")` fields.
+The primary path (`generate_from_data.py`) uses this to bake PCBWay identity fields onto
+each symbol so the official PCBWay KiCad plugin auto-populates the BOM after an F8 sync:
+
+```python
+sch.place_component("custom:TP4056", "U1", "TP4056", 100, 65,
+    footprint="Package_SO:SOIC-8_3.9x4.9mm_P1.27mm", dnp=False,
+    **{"MPN": "TP4056-42-ESOP8", "Manufacturer": "TPOWER", "Package": "ESOP-8"})
+```
+
+**Field-name contract** — the plugin resolves the MPN by the FIRST symbol field whose
+name is in its key list (`mpn, MPN, Mpn, PCBWay_MPN, part number, Part Number, Part No.,
+Mfr. Part No., Mfg Part, Manufacturer_Part_Number`), and it takes that field **even if it
+is empty**. Two traps:
+
+- **Empty-shadow:** emit exactly ONE mpn-family field, and only when it holds a real MPN.
+  An empty `mpn` field shadows a populated `MPN` and produces a blank BOM cell.
+- **`Mfg Part #` trap:** the plugin's key is `Mfg Part` (no `#`). `Mfg Part #` is only the
+  upload-xlsx column header — using it as a symbol field name populates nothing. Emit `MPN`.
+
+`LCSC Part #` is optional (JLCPCB-toolkit dual-compat) and is **never** an mpn-family key.
+The constants live in `check_pcbway.py` (`PLUGIN_MPN_KEYS`, `CANONICAL_MPN_FIELD`,
+`FORBIDDEN_MPN_FIELD`); the [CRITICAL] `check_schematic_mpns` gate enforces the contract.
+
 ### Step 3: Net Wiring — Label-Based (Critical Step)
 
 Process each net from the netlist YAML mechanically. **Use labels for ALL connectivity. No point-to-point wires between distant components.**

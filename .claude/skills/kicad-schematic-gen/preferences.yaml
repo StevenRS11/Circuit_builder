@@ -315,6 +315,25 @@ assembly:
     note: "advisory only — the skill flags violations in the BOM stage but does
            not auto-substitute; you review and decide."
 
+# ── Baking BOM identity into the schematic (PCBWay KiCad plugin contract) ──
+# The generator writes each part's identity fields onto its symbol so the official
+# PCBWay KiCad plugin auto-populates a clean BOM at fab time (after an F8 "Update
+# PCB from Schematic" sync). Declarative mirror of the constants in
+# scripts/check_pcbway.py — the plugin reads the FIRST present mpn-family key even
+# if empty, so exactly one is emitted, and only when it holds a real MPN.
+pcbway_schematic:
+  mpn_field: "MPN"                 # canonical key the PCBWay plugin reads
+  emit_fields: [MPN, Manufacturer, Package, Description]
+  emit_lcsc_field: true           # also write "LCSC Part #" from an LCSC supplier PN (JLC dual-compat)
+  forbid_field_names: ["Mfg Part #"]   # trap: this is the xlsx column header, NOT the plugin key ("Mfg Part")
+  package_source_order: [package, footprint]
+  # Every fitted line needs a real Manufacturer PN — passives included — because
+  # PCBWay's *Mfg Part # column is required per line (confirmed by their sample BOM).
+  # Passives are NOT substitutable-by-default. DNP/DNS parts still carry an MPN and
+  # are marked in the upload sheet's Type column. Enforced by the [CRITICAL]
+  # check_pcbway schematic-MPN gate.
+  require_mpn_on_all_fitted: true
+
 # Legacy alias — some prose still says "suppliers"; both map to the same idea.
 # pcb_fab kept for DRC defaults.
 pcb_fab: "PCBway"

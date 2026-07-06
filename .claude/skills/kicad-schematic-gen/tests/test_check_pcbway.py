@@ -13,7 +13,10 @@ from check_pcbway import (
     classify_package, is_generic_passive, check_bom, check_bom_file,
     load_bom_for_pcbway, build_sourcing_sheet, _scan_notes,
     format_result_json, PcbwayPart,
+    check_schematic_mpns, check_bom_mpn_ready, is_mpn_family_key,
+    PLUGIN_MPN_KEYS, CANONICAL_MPN_FIELD, FORBIDDEN_MPN_FIELD,
 )
+from generate_kicad_sch import KicadSchematic
 import pytest
 
 
@@ -224,6 +227,104 @@ class TestJsonOutput:
         assert "passed" in data
         assert len(data["parts"]) == 3
         assert all("rating" in p for p in data["parts"])
+
+
+# ─── [CRITICAL] schematic-MPN gate ──────────────────────────────────
+
+class TestSchematicMpnGate:
+    def _sch_with(self, ref="U1", lib="Device:R", value="10k",
+                  footprint="Package_TO_SOT_SMD:SOT-23-5", in_bom=True, **props):
+        sch = KicadSchematic("t")
+        sch.add_lib_symbol_resistor()
+        sch.place_component("Device:R", ref, value, 100, 100,
+                            footprint=footprint, in_bom=in_bom, **props)
+        return sch
+
+    def test_clean_mpn_passes(self):
+        r = check_schematic_mpns(self._sch_with(ref="U1", **{"MPN": "AP2112K-3.3TRG1"}))
+        assert r.passed
+
+    def test_missing_mpn_fails(self):
+        r = check_schematic_mpns(self._sch_with(ref="U1"))
+        assert not r.passed
+        assert {i.check_name for i in r.errors} == {"critical_schematic_mpn_present"}
+
+    def test_passives_are_enforced_too(self):
+        # A resistor with no MPN must FAIL — passives are not exempt (PCBway needs
+        # a real Mfg Part # per line).
+        r = check_schematic_mpns(self._sch_with(ref="R1",
+                                                footprint="Resistor_SMD:R_0805_2012Metric"))
+        assert not r.passed
+
+    def test_empty_mpn_shadow_fails(self):
+        r = check_schematic_mpns(self._sch_with(ref="U1", **{"mpn": ""}))
+        assert not r.passed
+
+    def test_mfg_part_hash_trap_fails(self):
+        r = check_schematic_mpns(self._sch_with(ref="U1", **{"Mfg Part #": "AP2112K"}))
+        assert not r.passed
+
+    def test_distributor_code_mpn_fails(self):
+        r = check_schematic_mpns(self._sch_with(ref="U1", **{"MPN": "C25804"}))
+        assert not r.passed
+
+    def test_description_mpn_fails(self):
+        r = check_schematic_mpns(self._sch_with(ref="U1", **{"MPN": "56k 5% 0805"}))
+        assert not r.passed
+
+    def test_multiple_mpn_family_keys_fail(self):
+        r = check_schematic_mpns(self._sch_with(ref="U1",
+                                                **{"MPN": "A", "Part Number": "B"}))
+        assert not r.passed
+
+    def test_mechanical_non_fitted_is_skipped(self):
+        # in_bom=no parts (mounting holes/test points) are exempt.
+        r = check_schematic_mpns(self._sch_with(ref="MH1", in_bom=False))
+        assert r.passed
+
+    def test_power_symbol_is_skipped(self):
+        sch = KicadSchematic("t")
+        sch.add_lib_symbol_resistor()
+        sch.place_power_symbol("GND", 100, 100)
+        assert check_schematic_mpns(sch).passed
+
+
+class TestFieldNameContract:
+    def test_canonical_key_is_recognized(self):
+        assert is_mpn_family_key(CANONICAL_MPN_FIELD)
+
+    def test_lcsc_field_is_not_mpn_family(self):
+        assert not is_mpn_family_key("LCSC Part #")
+
+    def test_forbidden_trap_is_not_the_plugin_key(self):
+        # 'Mfg Part #' (xlsx header) must NOT be treated as the plugin's 'Mfg Part'.
+        assert not is_mpn_family_key(FORBIDDEN_MPN_FIELD)
+        assert is_mpn_family_key("Mfg Part")
+
+
+class TestBomMpnReady:
+    def test_all_clean_passes(self):
+        parts = [
+            _part("U1", part_number="CH224K"),
+            _part("R1", value="10k", footprint="Resistor_SMD:R_0805_2012Metric",
+                  part_number="RC0805FR-0710KL"),
+        ]
+        assert check_bom_mpn_ready(parts).passed
+
+    def test_blank_passive_mpn_fails(self):
+        parts = [_part("R1", value="10k",
+                       footprint="Resistor_SMD:R_0805_2012Metric", part_number="")]
+        r = check_bom_mpn_ready(parts)
+        assert not r.passed
+        assert "critical_schematic_mpn_present" in {i.check_name for i in r.errors}
+
+    def test_dnp_line_is_exempt(self):
+        parts = [_part("U2", value="LM2904M", part_number="", notes="DNS - do not populate")]
+        assert check_bom_mpn_ready(parts).passed
+
+    def test_mechanical_line_is_exempt(self):
+        parts = [_part("MH1", value="", part_number="")]
+        assert check_bom_mpn_ready(parts).passed
 
 
 if __name__ == "__main__":

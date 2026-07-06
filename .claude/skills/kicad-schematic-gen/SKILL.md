@@ -689,6 +689,13 @@ and placement + IC pin-side arrangement in the layout YAML. Nothing is retyped.
    # res.passed, res.errors, res.warnings  (use uuid_seed for reproducible output)
    ```
 
+**BOM identity is baked into the symbols.** The engine writes each part's `MPN` (the
+canonical key the PCBWay KiCad plugin reads), `Manufacturer`, `Package`, and `Description`
+onto its symbol as hidden fields, so the plugin auto-populates the BOM at fab time — no
+manual field entry. Every fitted line (passives included) needs a real MPN in the flat
+BOM's Part Number column, or the Stage-9 [CRITICAL] `critical_schematic_mpn_present` gate
+blocks it. The fields only reach the board after an **F8** "Update PCB from Schematic" sync.
+
 **Output:** `{project}_06_layout.yaml` + the generated `{project}.kicad_sch`. Because the
 file is regenerated from data, never hand-edit it — change the layout YAML and re-run.
 

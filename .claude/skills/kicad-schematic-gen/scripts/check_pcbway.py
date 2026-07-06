@@ -46,6 +46,36 @@ import json as json_module
 from dataclasses import dataclass, field
 
 
+# ─── PCBWay KiCad-plugin field-name contract ─────────────────────────
+#
+# The official PCBWay plugin (pcbway/PCBWay-Plug-in-for-Kicad) resolves the
+# manufacturer part number by scanning symbol/footprint fields for the FIRST key
+# that EXISTS (utils.py::get_mpn_keys), in this priority order. First *present*
+# key wins even if empty — an empty `mpn` field shadows a populated `MPN` — so a
+# baked schematic must carry exactly ONE mpn-family key, non-empty. `LCSC Part #`
+# is deliberately NOT in this list (it feeds the JLCPCB toolkit, not PCBWay).
+PLUGIN_MPN_KEYS = [
+    "mpn", "MPN", "Mpn", "PCBWay_MPN", "part number", "Part Number",
+    "Part No.", "Mfr. Part No.", "Mfg Part", "Manufacturer_Part_Number",
+]
+# Package column keys (plugin get_pack_keys), + upper variants.
+PLUGIN_PACK_KEYS = ["pack", "package", "Package", "case", "Case"]
+
+# The canonical keys the generator emits.
+CANONICAL_MPN_FIELD = "MPN"
+CANONICAL_PACKAGE_FIELD = "Package"
+# Trap: the plugin's key is `Mfg Part` (no #); `Mfg Part #` is only the upload-xlsx
+# column header. Using it as a symbol field name silently populates nothing.
+FORBIDDEN_MPN_FIELD = "Mfg Part #"
+
+_MPN_KEYS_LOWER = {k.strip().lower() for k in PLUGIN_MPN_KEYS}
+
+
+def is_mpn_family_key(field_name):
+    """True if a symbol field name is one the PCBWay plugin reads as the MPN."""
+    return (field_name or "").strip().lower() in _MPN_KEYS_LOWER
+
+
 # ─── Package classification rubric ───────────────────────────────────
 #
 # Each rule: (regex tested against the footprint string, rating, note).
@@ -282,7 +312,33 @@ _COLUMN_ALIASES = {
     "supplier pn": "supplier_pn", "supplier #": "supplier_pn",
     "distributor pn": "supplier_pn", "lcsc": "supplier_pn", "lcsc pn": "supplier_pn",
     "notes": "notes", "note": "notes",
+    "dnp": "dnp", "dns": "dnp",
 }
+
+# Markers (in a DNP column, or free-form in Notes/Value) that mean the part is not
+# fitted at assembly. Kept narrow so an ordinary note isn't misread as DNP.
+_DNP_RE = re.compile(r"\b(dnp|dns|do[\s-]*not[\s-]*(populate|fit|place|install)|no[\s-]*stuff|unpopulated)\b",
+                     re.IGNORECASE)
+
+
+def _truthy_dnp(cell):
+    return bool(cell) and cell.strip().lower() in ("yes", "y", "true", "1", "dnp", "dns", "x")
+
+
+def bom_dnp(record):
+    """Whether a parsed BOM record marks a Do-Not-Populate / Do-Not-Stuff part.
+
+    Single source for the DNP signal so the schematic `(dnp yes)` attribute and the
+    Stage-9 upload sheet agree: a dedicated DNP/DNS column, a DNP marker in Notes,
+    or Value == 'DNP'.
+    """
+    if _truthy_dnp(record.get("dnp", "")):
+        return True
+    if (record.get("value", "") or "").strip().upper() in ("DNP", "DNS"):
+        return True
+    if _DNP_RE.search(record.get("notes", "") or ""):
+        return True
+    return False
 
 
 def _norm_header(cell):
@@ -308,6 +364,68 @@ def _split_row(line):
     return cells
 
 
+def parse_bom_records(md_text):
+    """Parse a Stage 3 BOM markdown table into raw field-name→value record dicts.
+
+    This is the single column-parsing routine shared by every BOM consumer
+    (PCBway checks, the xlsx generator, and the schematic generator via
+    cross_check_bom) so they can never drift on how columns are read. Placeholder
+    ({...}) cells are normalized to "" and template/separator rows are skipped.
+    Each record always has a non-empty "reference".
+
+    Returns list[dict]. Unknown columns are ignored.
+    """
+    records = []
+    lines = md_text.strip().split("\n")
+
+    header_idx = None
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if s.startswith("|") and "Ref" in s and "Value" in s:
+            header_idx = i
+            break
+    if header_idx is None:
+        return records
+
+    cols = _split_row(lines[header_idx])
+
+    idx_to_field = {}
+    for idx, col in enumerate(cols):
+        field_name = _norm_header(col)
+        if field_name:
+            idx_to_field[idx] = field_name
+
+    if "reference" not in idx_to_field.values():
+        return records
+
+    for i in range(header_idx + 2, len(lines)):
+        line = lines[i].strip()
+        if not line.startswith("|"):
+            break
+        cells = _split_row(line)
+        if not cells:
+            continue
+
+        raw = {}
+        for idx, field_name in idx_to_field.items():
+            if idx < len(cells):
+                raw[field_name] = cells[idx].strip()
+
+        ref = raw.get("reference", "")
+        raw_value = raw.get("value", "")
+        # Skip placeholder / separator rows: a stub row has a real designator but
+        # {value}-style template fields, or the row is a markdown separator. Test the
+        # RAW cells before {…} placeholders are normalized away.
+        if not ref or ref.startswith("{") or raw_value.startswith("{") \
+                or set(ref) <= set("-: "):
+            continue
+
+        record = {k: ("" if v.startswith("{") else v) for k, v in raw.items()}
+        records.append(record)
+
+    return records
+
+
 def load_bom_for_pcbway(md_text):
     """Parse a Stage 3 BOM markdown table into PcbwayPart records.
 
@@ -318,67 +436,19 @@ def load_bom_for_pcbway(md_text):
     Returns list of PcbwayPart.
     """
     parts = []
-    lines = md_text.strip().split("\n")
-
-    header_idx = None
-    for i, line in enumerate(lines):
-        s = line.strip()
-        if s.startswith("|") and "Ref" in s and "Value" in s:
-            header_idx = i
-            break
-    if header_idx is None:
-        return parts
-
-    cols = _split_row(lines[header_idx])
-
-    # Map column index -> field name
-    idx_to_field = {}
-    for idx, col in enumerate(cols):
-        field_name = _norm_header(col)
-        if field_name:
-            idx_to_field[idx] = field_name
-
-    if "reference" not in idx_to_field.values():
-        return parts
-
-    for i in range(header_idx + 2, len(lines)):
-        line = lines[i].strip()
-        if not line.startswith("|"):
-            break
-        cells = _split_row(line)
-        if not cells:
-            continue
-
-        record = {}
-        for idx, field_name in idx_to_field.items():
-            if idx < len(cells):
-                record[field_name] = cells[idx].strip()
-
-        ref = record.get("reference", "")
-        raw_value = record.get("value", "")
-        # Skip placeholder / separator rows (matches cross_check_bom): a stub row
-        # has a real designator but {value}-style template fields.
-        if not ref or ref.startswith("{") or raw_value.startswith("{") \
-                or set(ref) <= set("-: "):
-            continue
-
-        def clean(v):
-            v = record.get(v, "")
-            return "" if v.startswith("{") else v
-
+    for record in parse_bom_records(md_text):
         parts.append(PcbwayPart(
-            reference=ref,
-            value=clean("value"),
-            manufacturer=clean("manufacturer"),
-            description=clean("description"),
-            part_number=clean("part_number"),
-            package=clean("package"),
-            footprint=clean("footprint"),
-            supplier=clean("supplier"),
-            supplier_pn=clean("supplier_pn"),
-            notes=clean("notes"),
+            reference=record.get("reference", ""),
+            value=record.get("value", ""),
+            manufacturer=record.get("manufacturer", ""),
+            description=record.get("description", ""),
+            part_number=record.get("part_number", ""),
+            package=record.get("package", ""),
+            footprint=record.get("footprint", ""),
+            supplier=record.get("supplier", ""),
+            supplier_pn=record.get("supplier_pn", ""),
+            notes=record.get("notes", ""),
         ))
-
     return parts
 
 
@@ -510,6 +580,118 @@ def check_bom_file(bom_path):
     return check_bom(load_bom_for_pcbway(text))
 
 
+# ─── [CRITICAL] schematic-MPN gate (the "clean schematic, empty BOM" guard) ──
+#
+# A board can pass every connectivity check yet still yield an empty PCBWay BOM if
+# the identity fields aren't baked into the symbols under the exact key the plugin
+# reads. This gate asserts, for every fitted non-passive symbol, that exactly one
+# non-empty, real MPN sits under a plugin-recognized key — catching the missing /
+# empty-shadow / `Mfg Part #`-trap / distributor-code-as-MPN failures before fab.
+
+_CRIT_CHECK = "critical_schematic_mpn_present"
+
+
+def _mpn_verdict(mpn_props, forbidden_present):
+    """Judge a symbol's mpn-family fields. Returns (ok, reason). ``mpn_props`` is a
+    list of (key, value); ``forbidden_present`` is True if the `Mfg Part #` trap key
+    is used. Encodes the plugin's field-name contract."""
+    if forbidden_present:
+        return False, (f"uses forbidden field name '{FORBIDDEN_MPN_FIELD}' — the plugin's "
+                       f"key is 'Mfg Part' (no #); use '{CANONICAL_MPN_FIELD}'")
+    if not mpn_props:
+        return False, f"no manufacturer part number field (expected '{CANONICAL_MPN_FIELD}')"
+    if len(mpn_props) > 1:
+        keys = ", ".join(sorted(k for k, _ in mpn_props))
+        return False, (f"multiple mpn-family fields ({keys}); the plugin takes the first "
+                       f"present even if empty — emit exactly one")
+    key, val = mpn_props[0]
+    val = (val or "").strip()
+    if not val:
+        return False, f"'{key}' is present but empty — it shadows any real MPN to a blank"
+    if looks_like_distributor_code(val):
+        return False, f"'{key}' = '{val}' is a distributor catalog code, not a manufacturer PN"
+    if looks_like_description(val):
+        return False, f"'{key}' = '{val}' looks like a description, not a manufacturer PN"
+    return True, ""
+
+
+def check_schematic_mpns(sch):
+    """[CRITICAL] gate on the MPN fields baked into a generated schematic.
+
+    ``sch`` is a KicadSchematic (from validate_kicad_sch.load_kicad_sch). Returns a
+    PcbwayResult; result.passed is False if any fitted symbol lacks a single clean,
+    plugin-readable MPN. Every fitted line needs a real Manufacturer PN — passives
+    included — because PCBway's `*Mfg Part #` column is required per line (confirmed
+    by their sample BOM); only board-only mechanical parts (in_bom=no) are exempt.
+    """
+    issues = []
+    for comp in sch.components:
+        ref = comp.reference
+        if ref.startswith("#PWR"):
+            continue
+        lib_sym = sch.lib_symbols.get(comp.lib_id)
+        if lib_sym is not None and getattr(lib_sym, "is_power", False):
+            continue
+        if not comp.in_bom:
+            continue
+
+        props = comp.extra_properties or {}
+        forbidden_present = any(k.strip().lower() == FORBIDDEN_MPN_FIELD.lower()
+                                for k in props)
+        mpn_props = [(k, v) for k, v in props.items() if is_mpn_family_key(k)]
+        ok, reason = _mpn_verdict(mpn_props, forbidden_present)
+        if not ok:
+            issues.append(PcbwayIssue(
+                severity="error", check_name=_CRIT_CHECK,
+                message=f"{ref} ({comp.value}): {reason}",
+                reference=ref))
+
+    return PcbwayResult(passed=not issues, issues=issues, parts=[])
+
+
+def check_schematic_mpns_file(sch_path):
+    """Load a .kicad_sch and run the [CRITICAL] schematic-MPN gate."""
+    from validate_kicad_sch import load_kicad_sch
+    return check_schematic_mpns(load_kicad_sch(sch_path))
+
+
+def _is_mechanical_ref(reference):
+    """Board-only mechanical parts (test points, fiducials, mounting holes) that are
+    legitimately not sourced — excluded from the MPN requirement."""
+    m = re.match(r"^([A-Za-z]+)", (reference or "").strip())
+    return bool(m) and m.group(1).upper() in ("TP", "FID", "FD", "MH", "MK", "MP", "H")
+
+
+def check_bom_mpn_ready(parts):
+    """BOM-level mirror of the schematic-MPN gate, for the pre-generation flat BOM.
+
+    Asserts every fitted line — passives included — carries a real MPN in its Part
+    Number column, the same condition that otherwise produces an unresolvable symbol
+    MPN. Emits `critical_schematic_mpn_present` errors so it gates identically to the
+    schematic check. Only DNP/DNS and board-only mechanical parts are exempt. Makes
+    no other assessment (that's check_bom's job).
+    """
+    issues = []
+    for p in parts:
+        if _is_mechanical_ref(p.reference):
+            continue
+        if bom_dnp({"value": p.value, "notes": p.notes}):
+            continue  # DNP parts are not sourced
+        pn = (p.part_number or "").strip()
+        if not pn:
+            reason = "no Part Number (manufacturer PN) — PCBway cannot source it and the symbol MPN will be blank"
+        elif looks_like_distributor_code(pn):
+            reason = f"Part Number '{pn}' is a distributor catalog code, not a manufacturer PN"
+        elif looks_like_description(pn):
+            reason = f"Part Number '{pn}' looks like a description, not a manufacturer PN"
+        else:
+            continue
+        issues.append(PcbwayIssue(
+            severity="error", check_name=_CRIT_CHECK,
+            message=f"{p.reference} ({p.value}): {reason}", reference=p.reference))
+    return PcbwayResult(passed=not issues, issues=issues, parts=parts)
+
+
 # ─── Sourcing-sheet emitter ──────────────────────────────────────────
 
 def build_sourcing_sheet(result, project_name=""):
@@ -621,7 +803,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="Score a Stage 3 BOM for PCBway turnkey-assembly readiness.",
     )
-    parser.add_argument("bom", help="BOM markdown file (Stage 3)")
+    parser.add_argument("bom", nargs="?", help="BOM markdown file (Stage 3)")
+    parser.add_argument("--schematic", metavar="FILE",
+                        help="Run the [CRITICAL] schematic-MPN gate on a generated "
+                             ".kicad_sch (checks baked symbol MPN fields) instead of a BOM")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--sourcing-sheet", action="store_true",
                         help="Emit the PCBway sourcing-sheet markdown instead of the report")
@@ -629,6 +814,38 @@ def main():
     parser.add_argument("--strict", action="store_true",
                         help="Treat cautions as failures too (exit 1 on any caution)")
     args = parser.parse_args()
+
+    # ── [CRITICAL] schematic-MPN gate mode ──
+    if args.schematic:
+        result = check_schematic_mpns_file(args.schematic)
+        if args.json:
+            out = json_module.dumps({
+                "schematic_file": args.schematic,
+                "check": _CRIT_CHECK,
+                "passed": result.passed,
+                "error_count": len(result.errors),
+                "issues": [{"severity": i.severity, "check": i.check_name,
+                            "reference": i.reference, "message": i.message}
+                           for i in result.issues],
+            }, indent=2)
+        else:
+            lines = ["=" * 60, "PCBWAY SCHEMATIC-MPN GATE [CRITICAL]", "=" * 60,
+                     f"Schematic: {args.schematic}", ""]
+            lines.append("RESULT: PASSED" if result.passed
+                         else f"RESULT: FAILED ({len(result.errors)} unresolvable MPNs)")
+            for i in result.errors:
+                lines.append(f"  [{i.check_name}] {i.message}")
+            out = "\n".join(lines)
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(out + "\n")
+            print(f"Wrote {args.output}")
+        else:
+            print(out)
+        sys.exit(0 if result.passed else 1)
+
+    if not args.bom:
+        parser.error("a BOM file is required (or use --schematic FILE)")
 
     with open(args.bom, "r", encoding="utf-8") as f:
         text = f.read()

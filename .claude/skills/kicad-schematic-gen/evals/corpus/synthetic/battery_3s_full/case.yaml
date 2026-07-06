@@ -38,4 +38,8 @@ observed:
   check_requirements: { errors: 0, warnings: 0 }
   analyze_dc:         { errors: 0, warnings: 1 }
   analyze_analog:     { errors: 0, warnings: 2 }    # advisory front-end notes (charger, not a sensor FE)
-  check_pcbway:       { errors: 0, warnings: 7 }    # package cautions (review, not blocking)
+  check_pcbway:       { errors: 0, warnings: 135 }  # on the RICH 03_bom.md: 74 missing_manufacturer
+                                                    # (no Manufacturer column) + 54 mpn_not_real (passive
+                                                    # description-PNs) + 7 package cautions. All non-blocking;
+                                                    # the schematic-MPN gate below is what hard-enforces MPNs.
+  check_schematic_mpn: { errors: 0, warnings: 0 }   # baked symbol MPNs on the generated sch (from 03_bom_flat)

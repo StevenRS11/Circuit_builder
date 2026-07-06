@@ -89,3 +89,34 @@ class TestShippedLayoutClean:
         mj = [i for i in validate(sch).issues
               if i.check_name == "missing_junction"]
         assert mj == []
+
+
+class TestBakedBomIdentity:
+    """Every fitted symbol carries the PCBway identity fields from its BOM line."""
+
+    def test_schematic_mpn_gate_passes(self):
+        from check_pcbway import check_schematic_mpns
+        netlist, bom, layout = _load_objs()
+        sch = build_schematic(netlist, bom, layout, uuid_seed=0)
+        assert check_schematic_mpns(sch).passed
+
+    def test_mpn_and_value_join_the_bom_no_retyping(self):
+        netlist, bom, layout = _load_objs()
+        sch = build_schematic(netlist, bom, layout, uuid_seed=0)
+        by_ref = {e.reference: e for e in bom}
+        for comp in sch.components:
+            if comp.reference.startswith("#PWR"):
+                continue
+            entry = by_ref[comp.reference]
+            # Value and baked MPN come straight from the BOM — not retyped.
+            assert comp.value == entry.value
+            assert comp.extra_properties.get("MPN") == entry.part_number
+
+    def test_every_fitted_component_has_an_mpn(self):
+        netlist, bom, layout = _load_objs()
+        sch = build_schematic(netlist, bom, layout, uuid_seed=0)
+        for comp in sch.components:
+            if comp.reference.startswith("#PWR"):
+                continue
+            assert comp.extra_properties.get("MPN"), \
+                f"{comp.reference} has no baked MPN"

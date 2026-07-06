@@ -1,0 +1,15 @@
+# Expected result — NEGATIVE case: the gate must bite.
+name: critical_schematic_mpn
+kind: negative
+grader: check_pcbway
+inputs: { bom_flat: bom_flat.md }
+expect:
+  passed: false                       # the schematic-MPN gate MUST fail
+  must_include_check: critical_schematic_mpn_present
+notes: >
+  Frozen reproduction of the "clean schematic, empty PCBWay BOM" class. Three fitted
+  lines have an unresolvable MPN: U2 (blank), R1 (an LCSC distributor code, not a
+  manufacturer PN — and passives ARE enforced), and C1 (a description, not an MPN).
+  Each would bake a symbol MPN the PCBWay plugin cannot resolve, so boards would reach
+  fab with parts PCBWay can't source. If this case ever PASSES, the schematic-MPN gate
+  has regressed.

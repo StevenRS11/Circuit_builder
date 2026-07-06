@@ -38,6 +38,54 @@ from verify_netlist import (
 )
 from cross_check_bom import load_bom_from_markdown, cross_check
 from validate_kicad_sch import validate
+from check_pcbway import (
+    CANONICAL_MPN_FIELD, CANONICAL_PACKAGE_FIELD,
+    looks_like_distributor_code, looks_like_description,
+)
+
+
+# Placeholder tokens that mean "no value" in a BOM cell.
+_BLANK_TOKENS = {"", "-", "—", "–", "n/a", "tbd"}
+
+
+def _blank(s):
+    """Normalize BOM placeholder dashes / TBD to empty string."""
+    return "" if (s or "").strip().lower() in _BLANK_TOKENS else (s or "").strip()
+
+
+def _real_mpn(part_number):
+    """The part number iff it is a *real* manufacturer PN — never a distributor
+    catalog code (LCSC C#####) or a description ('56k 5% 0805'), which would
+    silently poison the PCBway BOM's MPN column. Returns "" otherwise."""
+    pn = _blank(part_number)
+    if not pn or looks_like_distributor_code(pn) or looks_like_description(pn):
+        return ""
+    return pn
+
+
+def _pcbway_symbol_props(bom):
+    """Build the PCBway identity fields to bake onto a placed symbol from its BOM
+    line. Emits exactly one mpn-family key (only when the PN is real), so the plugin
+    never reads an empty/shadowed MPN. See check_pcbway's field-name contract."""
+    extra = {}
+    mpn = _real_mpn(getattr(bom, "part_number", ""))
+    if mpn:
+        extra[CANONICAL_MPN_FIELD] = mpn
+    mfr = _blank(getattr(bom, "manufacturer", ""))
+    if mfr:
+        extra["Manufacturer"] = mfr
+    pkg = _blank(getattr(bom, "package", "")) or _blank(bom.footprint)
+    if pkg:
+        extra[CANONICAL_PACKAGE_FIELD] = pkg
+    desc = _blank(getattr(bom, "description", ""))
+    if desc:
+        extra["Description"] = desc
+    supplier = _blank(getattr(bom, "supplier", ""))
+    supplier_pn = _blank(getattr(bom, "supplier_pn", ""))
+    if supplier.upper().startswith("LCSC") and supplier_pn:
+        # Optional JLCPCB-toolkit dual-compat field — never the only PN field.
+        extra["LCSC Part #"] = supplier_pn
+    return extra
 
 
 # ─── lib_id → symbol dispatch ────────────────────────────────────────
@@ -295,11 +343,19 @@ def build_schematic(netlist: IntendedNetlist, bom_entries: list, layout: Layout,
     sch = KicadSchematic(layout.title, rev=layout.rev, uuid_seed=uuid_seed)
     _register_symbols(sch, layout)
 
-    # Place components (BOM owns value/footprint; layout owns geometry).
+    # Place components (BOM owns value/footprint + PCBway identity; layout owns
+    # geometry). The MPN/Manufacturer/Package/Description fields are baked onto each
+    # symbol so the PCBWay KiCad plugin auto-populates a clean BOM after an F8 sync.
     for ref, pl in layout.placements.items():
         bom = bom_by_ref[ref]
-        sch.place_component(pl.lib_id, ref, bom.value, pl.x, pl.y,
-                            rotation=pl.rotation, footprint=bom.footprint)
+        extra = _pcbway_symbol_props(bom)
+        sch.place_component(
+            pl.lib_id, ref, bom.value, pl.x, pl.y,
+            rotation=pl.rotation, footprint=bom.footprint,
+            in_bom=not bom.is_mechanical_non_fitted,
+            dnp=bool(getattr(bom, "dnp", False)),
+            **extra,
+        )
 
     # Netlist-driven label/power wiring.
     power_nets = set(layout.power_nets)
@@ -400,6 +456,19 @@ def generate(netlist_path, bom_path, layout_path, out_path=None,
     return result
 
 
+# Printed after a successful save. The baked MPN/Manufacturer fields live on the
+# schematic symbols; they only reach the board (and thus the PCBWay plugin's BOM)
+# after an F8 sync — which this skill cannot automate, so it must be said out loud.
+PCBWAY_HANDOFF_NOTE = (
+    "\nBefore running the PCBWay plugin:\n"
+    "  1. Open the PCB and run Update PCB from Schematic (F8) with 'Update footprint\n"
+    "     fields' enabled — this carries MPN/Manufacturer/Package onto the board.\n"
+    "     No schematic field reaches the BOM without this sync.\n"
+    "  2. Set the drill/place origin (the plugin plots pick-and-place relative to it).\n"
+    "  3. Then click the PCBWay plugin to generate the BOM + fab files."
+)
+
+
 def _main(argv=None):
     ap = argparse.ArgumentParser(description="Data-driven KiCad schematic generator.")
     ap.add_argument("netlist", help="Stage 5b netlist YAML")
@@ -438,6 +507,7 @@ def _main(argv=None):
             print(f"  warn   {w}")
         if res.output_path:
             print(f"Saved: {res.output_path}")
+            print(PCBWAY_HANDOFF_NOTE)
         elif res.passed and not args.output:
             print("(no -o given; not saved)")
         else:

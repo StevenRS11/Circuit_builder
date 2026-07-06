@@ -96,6 +96,7 @@ class PlacedComponent:
     unit: int = 1
     in_bom: bool = True
     on_board: bool = True
+    dnp: bool = False
     extra_properties: dict = field(default_factory=dict)
     pin_uuids: dict = field(default_factory=dict)  # pin_number -> uuid
 
@@ -1643,7 +1644,7 @@ class KicadSchematic:
 
     def place_component(self, lib_id, reference, value, x, y,
                         rotation=0, footprint="", datasheet="~",
-                        in_bom=True, on_board=True, **extra_props):
+                        in_bom=True, on_board=True, dnp=False, **extra_props):
         """Place a component instance on the schematic.
 
         The lib_id must have been previously added via add_lib_symbol_*.
@@ -1677,7 +1678,7 @@ class KicadSchematic:
             lib_id=lib_id, reference=reference, value=value,
             x=x, y=y, rotation=rotation,
             footprint=footprint, datasheet=datasheet,
-            in_bom=in_bom, on_board=on_board,
+            in_bom=in_bom, on_board=on_board, dnp=dnp,
             extra_properties=extra_props,
             pin_uuids=pin_uuids,
         )
@@ -3037,7 +3038,7 @@ class KicadSchematic:
         lines.append(f'    (unit {comp.unit})')
         lines.append(f'    (in_bom {bom})')
         lines.append(f'    (on_board {board})')
-        lines.append(f'    (dnp no)')
+        lines.append(f'    (dnp {"yes" if comp.dnp else "no"})')
         lines.append(f'    (uuid "{uid}")')
 
         # Properties — use precomputed label positions if available

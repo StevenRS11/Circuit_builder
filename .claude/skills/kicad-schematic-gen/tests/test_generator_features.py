@@ -946,3 +946,110 @@ class TestPinKeepoutZones:
         result = validate(sch)
         errors = [i for i in result.issues if i.severity == "error"]
         assert len(errors) == 0
+
+
+# ─── DNP + baked BOM-identity property emission ──────────────────────
+
+class TestDnpAndBakedProperties:
+    def _resistor_sch(self):
+        sch = KicadSchematic("test")
+        sch.add_lib_symbol_resistor()
+        return sch
+
+    def test_dnp_default_is_no(self):
+        sch = self._resistor_sch()
+        sch.place_component("Device:R", "R1", "10k", 100, 100)
+        text = sch._render_placed_component(sch.components[-1])
+        assert "(dnp no)" in text
+        assert "(dnp yes)" not in text
+
+    def test_dnp_true_serializes_yes(self):
+        sch = self._resistor_sch()
+        sch.place_component("Device:R", "R1", "10k", 100, 100, dnp=True)
+        text = sch._render_placed_component(sch.components[-1])
+        assert "(dnp yes)" in text
+
+    def test_extra_props_serialize_as_hidden_properties(self):
+        sch = self._resistor_sch()
+        sch.place_component("Device:R", "R1", "10k", 100, 100,
+                            footprint="Resistor_SMD:R_0805_2012Metric",
+                            **{"MPN": "RC0805FR-0710KL", "Manufacturer": "YAGEO"})
+        text = sch._render_placed_component(sch.components[-1])
+        assert '(property "MPN" "RC0805FR-0710KL"' in text
+        assert '(property "Manufacturer" "YAGEO"' in text
+
+    def test_in_bom_no_serializes(self):
+        sch = self._resistor_sch()
+        sch.place_component("Device:R", "R1", "10k", 100, 100, in_bom=False)
+        text = sch._render_placed_component(sch.components[-1])
+        assert "(in_bom no)" in text
+
+
+class TestPcbwaySymbolProps:
+    """The engine's clean-MPN emit rules (generate_from_data._pcbway_symbol_props)."""
+
+    def _bom(self, **kw):
+        from cross_check_bom import BomEntry
+        kw.setdefault("reference", "U1")
+        kw.setdefault("value", "X")
+        kw.setdefault("footprint", "Package_TO_SOT_SMD:SOT-23-5")
+        return BomEntry(**kw)
+
+    def test_real_mpn_emitted_once(self):
+        from generate_from_data import _pcbway_symbol_props
+        p = _pcbway_symbol_props(self._bom(part_number="AP2112K-3.3TRG1",
+                                           manufacturer="Diodes Inc", package="SOT-23-5"))
+        assert p["MPN"] == "AP2112K-3.3TRG1"
+        assert p["Manufacturer"] == "Diodes Inc"
+        assert p["Package"] == "SOT-23-5"
+        # exactly one mpn-family key
+        from check_pcbway import is_mpn_family_key
+        assert sum(1 for k in p if is_mpn_family_key(k)) == 1
+
+    def test_blank_part_number_emits_no_mpn(self):
+        from generate_from_data import _pcbway_symbol_props
+        p = _pcbway_symbol_props(self._bom(part_number=""))
+        assert "MPN" not in p
+
+    def test_dash_placeholder_emits_no_mpn(self):
+        from generate_from_data import _pcbway_symbol_props
+        p = _pcbway_symbol_props(self._bom(part_number="—"))
+        assert "MPN" not in p
+
+    def test_distributor_code_not_emitted_as_mpn(self):
+        from generate_from_data import _pcbway_symbol_props
+        p = _pcbway_symbol_props(self._bom(part_number="C25804"))
+        assert "MPN" not in p
+
+    def test_description_not_emitted_as_mpn(self):
+        from generate_from_data import _pcbway_symbol_props
+        p = _pcbway_symbol_props(self._bom(part_number="56k 5% 0805"))
+        assert "MPN" not in p
+
+    def test_package_falls_back_to_footprint(self):
+        from generate_from_data import _pcbway_symbol_props
+        p = _pcbway_symbol_props(self._bom(part_number="X1", package="",
+                                           footprint="Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"))
+        assert p["Package"] == "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+
+    def test_lcsc_dual_compat_field(self):
+        from generate_from_data import _pcbway_symbol_props
+        p = _pcbway_symbol_props(self._bom(part_number="X1", supplier="LCSC",
+                                           supplier_pn="C2827654"))
+        assert p["LCSC Part #"] == "C2827654"
+        # ...but it is never the mpn-family key
+        from check_pcbway import is_mpn_family_key
+        assert not is_mpn_family_key("LCSC Part #")
+
+
+class TestMechanicalNonFitted:
+    def test_mounting_hole_is_non_fitted(self):
+        from cross_check_bom import BomEntry
+        assert BomEntry("MH1", "", "MountingHole:MountingHole_3.2mm_M3").is_mechanical_non_fitted
+        assert BomEntry("TP1", "", "").is_mechanical_non_fitted
+        assert BomEntry("FID1", "", "").is_mechanical_non_fitted
+
+    def test_regular_part_is_fitted(self):
+        from cross_check_bom import BomEntry
+        assert not BomEntry("U1", "CH224K", "Package_SO:SSOP-10").is_mechanical_non_fitted
+        assert not BomEntry("R1", "10k", "Resistor_SMD:R_0805_2012Metric").is_mechanical_non_fitted

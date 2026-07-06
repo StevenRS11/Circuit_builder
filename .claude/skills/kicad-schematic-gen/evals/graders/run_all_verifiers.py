@@ -46,7 +46,7 @@ from check_cards import load_cards_from_dir, check_cards
 from check_requirements import load_spec_requirements, load_traceability, check_requirements
 from analyze_dc import load_design, analyze as analyze_dc
 from analyze_analog import analyze_netlist_file
-from check_pcbway import load_bom_for_pcbway, check_bom
+from check_pcbway import load_bom_for_pcbway, check_bom, check_schematic_mpns
 
 
 # ─── normalized case filenames ────────────────────────────────────
@@ -190,6 +190,13 @@ def grade_case(case_dir):
         graders["check_pcbway"] = _g(r.passed, r.issues)
     else:
         skipped["check_pcbway"] = "no 03_bom.md"
+
+    # ── 10. [CRITICAL] schematic-MPN gate on the baked symbol fields ──
+    if sch is not None:
+        r = check_schematic_mpns(sch)
+        graders["check_schematic_mpn"] = _g(r.passed, r.issues)
+    else:
+        skipped["check_schematic_mpn"] = "no generated schematic"
 
     overall = all(g["passed"] for g in graders.values()) and len(graders) > 0
     return {

@@ -102,6 +102,31 @@ class BomEntry:
     value: str
     footprint: str = ""
     quantity: int = 1
+    # Rich sourcing fields (populated when the BOM table carries them). These let
+    # the schematic generator bake PCBway identity fields onto each symbol. cross_check
+    # itself only reads reference/value/footprint, so these are purely additive.
+    manufacturer: str = ""
+    part_number: str = ""     # manufacturer part number (MPN)
+    package: str = ""
+    description: str = ""
+    supplier: str = ""
+    supplier_pn: str = ""      # distributor PN (LCSC/DigiKey/Mouser)
+    dnp: bool = False
+
+    @property
+    def is_mechanical_non_fitted(self):
+        """True for board-only mechanical parts that must be excluded from the BOM
+        (test points, fiducials, mounting holes). Drives in_bom=no on the symbol."""
+        prefix = _ref_prefix(self.reference)
+        if prefix in ("TP", "FID", "FD", "MH", "MK", "MP", "H"):
+            return True
+        fp = self.footprint or ""
+        return bool(re.search(r"MountingHole|Fiducial|TestPoint", fp, re.IGNORECASE))
+
+
+def _ref_prefix(reference):
+    m = re.match(r"^([A-Za-z]+)", (reference or "").strip())
+    return m.group(1).upper() if m else ""
 
 
 @dataclass
@@ -131,72 +156,32 @@ class CrossCheckResult:
 def load_bom_from_markdown(md_text):
     """Parse BOM entries from a Stage 3 markdown table.
 
-    Expects a markdown table with at minimum: Ref, Value columns.
-    Footprint column is optional but used if present.
+    Expects a markdown table with at minimum: Ref, Value columns. Footprint and the
+    rich sourcing columns (Part Number, Manufacturer, Package, Description, Supplier,
+    Supplier PN, DNP) are optional and captured when present.
+
+    Uses the single shared column parser (check_pcbway.parse_bom_records) so the
+    schematic path reads columns identically to the PCBway checks and the xlsx
+    generator — there is exactly one BOM format to maintain.
 
     Returns list of BomEntry.
     """
+    from check_pcbway import parse_bom_records, bom_dnp
+
     entries = []
-    lines = md_text.strip().split('\n')
-
-    # Find the BOM table header
-    header_idx = None
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped.startswith('|') and 'Ref' in stripped and 'Value' in stripped:
-            header_idx = i
-            break
-
-    if header_idx is None:
-        return entries
-
-    # Parse header to find column indices
-    header = lines[header_idx]
-    cols = [c.strip() for c in header.split('|')]
-    # Remove empty strings from leading/trailing pipes
-    cols = [c for c in cols if c]
-
-    col_map = {}
-    for idx, col in enumerate(cols):
-        col_lower = col.lower().strip()
-        if col_lower in ('ref', 'reference'):
-            col_map['ref'] = idx
-        elif col_lower == 'value':
-            col_map['value'] = idx
-        elif 'footprint' in col_lower:
-            col_map['footprint'] = idx
-
-    if 'ref' not in col_map or 'value' not in col_map:
-        return entries
-
-    # Skip the separator line (---|---|---)
-    data_start = header_idx + 2
-
-    for i in range(data_start, len(lines)):
-        line = lines[i].strip()
-        if not line.startswith('|'):
-            break
-        cells = [c.strip() for c in line.split('|')]
-        cells = [c for c in cells if c != '']
-
-        if len(cells) <= max(col_map.values()):
-            continue
-
-        ref = cells[col_map['ref']].strip()
-        value = cells[col_map['value']].strip()
-
-        # Skip template/placeholder rows
-        if ref.startswith('{') or value.startswith('{'):
-            continue
-
-        footprint = ""
-        if 'footprint' in col_map and col_map['footprint'] < len(cells):
-            fp = cells[col_map['footprint']].strip()
-            if not fp.startswith('{'):
-                footprint = fp
-
-        entries.append(BomEntry(reference=ref, value=value, footprint=footprint))
-
+    for record in parse_bom_records(md_text):
+        entries.append(BomEntry(
+            reference=record.get("reference", ""),
+            value=record.get("value", ""),
+            footprint=record.get("footprint", ""),
+            manufacturer=record.get("manufacturer", ""),
+            part_number=record.get("part_number", ""),
+            package=record.get("package", ""),
+            description=record.get("description", ""),
+            supplier=record.get("supplier", ""),
+            supplier_pn=record.get("supplier_pn", ""),
+            dnp=bom_dnp(record),
+        ))
     return entries
 
 

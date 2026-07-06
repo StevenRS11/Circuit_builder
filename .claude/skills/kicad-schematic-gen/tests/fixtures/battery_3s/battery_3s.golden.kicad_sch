@@ -2429,6 +2429,18 @@
       (at 59.69 80.01 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "USB4125-GF-A"
+      (at 59.69 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "GCT"
+      (at 59.69 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "USB-C"
+      (at 59.69 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "A5" (uuid "7a5b95e4-e837-4123-8823-c1189ecc40fc"))
     (pin "B5" (uuid "e888fbb4-cf9a-4625-8f19-ba12e6d9af54"))
     (pin "A9" (uuid "788f195a-6f50-4ca3-a934-f78d7a71dd85"))
@@ -2467,6 +2479,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 95.25 115.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "LTC4412ES6#TRPBF"
+      (at 95.25 115.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Analog Devices"
+      (at 95.25 115.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "TSOT-23-6"
       (at 95.25 115.57 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -2510,6 +2534,18 @@
       (at 95.25 142.24 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "AO3401A"
+      (at 95.25 142.24 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Alpha & Omega"
+      (at 95.25 142.24 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "SOT-23"
+      (at 95.25 142.24 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "0bd192a2-e8ef-489a-ae12-061fa2309bd4"))
     (pin "2" (uuid "931e6417-5ed5-4b1d-899b-0531f6f82fb7"))
     (pin "3" (uuid "1f7a35ba-cc0f-4fad-858b-6c9e19d54211"))
@@ -2544,6 +2580,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 69.85 115.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21B105KBFNNNE"
+      (at 69.85 115.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 69.85 115.57 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 69.85 115.57 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -2583,6 +2631,18 @@
       (at 119.38 139.7 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21B104KBCNNNC"
+      (at 119.38 139.7 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 119.38 139.7 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 119.38 139.7 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "0ec9ad28-d829-4787-801e-98eb71aa2c03"))
     (pin "2" (uuid "78ae68e6-91df-42ea-8fa6-5b63d6a84027"))
     (instances
@@ -2616,6 +2676,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 139.7 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CH224K"
+      (at 139.7 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "WCH"
+      (at 139.7 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "SSOP-10"
       (at 139.7 80.01 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -2664,6 +2736,18 @@
       (at 130.81 110.49 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-0756KL"
+      (at 130.81 110.49 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 130.81 110.49 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 130.81 110.49 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "bff6b39b-a77e-46a4-a775-a36f5fdf892d"))
     (pin "2" (uuid "3560964a-0223-4645-9556-ca5eb71756c7"))
     (instances
@@ -2697,6 +2781,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 100.33 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21A106KAYNNNE"
+      (at 100.33 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 100.33 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 100.33 59.69 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -2736,6 +2832,18 @@
       (at 113.03 59.69 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21B104KBCNNNC"
+      (at 113.03 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 113.03 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 113.03 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "6a1b198f-e87b-4956-97cc-f9cf571f7a1d"))
     (pin "2" (uuid "b37f6d09-4d55-4caf-a427-eb2aa09060ce"))
     (instances
@@ -2772,6 +2880,18 @@
       (at 175.26 59.69 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-0710KL"
+      (at 175.26 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 175.26 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 175.26 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "f9fda316-10ce-4532-bf38-0f620219648e"))
     (pin "2" (uuid "844a72eb-7dc9-45b6-ad37-6c155e38fdff"))
     (instances
@@ -2805,6 +2925,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 260.35 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "BQ24650RVAR"
+      (at 260.35 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Texas Instruments"
+      (at 260.35 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "VQFN-16"
       (at 260.35 170.18 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -2859,6 +2991,18 @@
       (at 309.88 149.86 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "AO3400A"
+      (at 309.88 149.86 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Alpha & Omega"
+      (at 309.88 149.86 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "SOT-23"
+      (at 309.88 149.86 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "cf1f84dc-c9fe-4009-8864-715fc130745b"))
     (pin "2" (uuid "caa113f4-0be6-4f0a-bc41-e606f185aa91"))
     (pin "3" (uuid "92e0373a-17c6-41e2-a3a0-c780b2866b81"))
@@ -2893,6 +3037,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 309.88 185.42 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "AO3400A"
+      (at 309.88 185.42 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Alpha & Omega"
+      (at 309.88 185.42 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "SOT-23"
       (at 309.88 185.42 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -2933,6 +3089,18 @@
       (at 340.36 170.18 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "MWSA0503S-100MT"
+      (at 340.36 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Sunlord"
+      (at 340.36 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "MWSA0503"
+      (at 340.36 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "d15d1298-e424-4500-b4a8-acbbf0e61fbf"))
     (pin "2" (uuid "014b5eb0-06ee-4a3b-9b24-2f741c7a58b5"))
     (instances
@@ -2966,6 +3134,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 359.41 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RL1206FR-070R03L"
+      (at 359.41 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 359.41 170.18 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "1206"
       (at 359.41 170.18 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3005,6 +3185,18 @@
       (at 345.44 199.39 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-0710RL"
+      (at 345.44 199.39 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 345.44 199.39 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 345.44 199.39 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "cd395082-3e3c-412f-8a5f-6ba90bdc2199"))
     (pin "2" (uuid "056413b3-1221-4b4c-8c6a-bded24976c4c"))
     (instances
@@ -3038,6 +3230,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 374.65 199.39 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RC0805FR-0710RL"
+      (at 374.65 199.39 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 374.65 199.39 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 374.65 199.39 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3077,6 +3281,18 @@
       (at 359.41 214.63 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21B103KBCNNNC"
+      (at 359.41 214.63 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 359.41 214.63 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 359.41 214.63 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "8e9bb027-cbb3-42ed-a62f-c46b6e2c3ff5"))
     (pin "2" (uuid "7457ef85-245a-46a1-a316-7bc1344b00d4"))
     (instances
@@ -3110,6 +3326,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 224.79 144.78 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21B104KBCNNNC"
+      (at 224.79 144.78 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 224.79 144.78 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 224.79 144.78 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3149,6 +3377,18 @@
       (at 219.71 175.26 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21B105KBFNNNE"
+      (at 219.71 175.26 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 219.71 175.26 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 219.71 175.26 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "1e45e2ab-0a00-4165-86e3-94b565711abf"))
     (pin "2" (uuid "405a48df-c1ac-4832-9815-0912ca434e88"))
     (instances
@@ -3182,6 +3422,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 325.12 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21B473KBCNNNC"
+      (at 325.12 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 325.12 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 325.12 129.54 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3221,6 +3473,18 @@
       (at 204.47 165.1 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21B105KBFNNNE"
+      (at 204.47 165.1 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 204.47 165.1 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 204.47 165.1 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "4a715f91-a023-481f-b21e-61669777238f"))
     (pin "2" (uuid "ab4c5aa1-79be-4a37-ba7d-b180517ea6f5"))
     (instances
@@ -3254,6 +3518,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 219.71 200.66 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RC0805FR-07953KL"
+      (at 219.71 200.66 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 219.71 200.66 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 219.71 200.66 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3293,6 +3569,18 @@
       (at 219.71 224.79 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-07200KL"
+      (at 219.71 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 219.71 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 219.71 224.79 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "0a1d9e00-ff45-4fa3-b34a-bae63a24c092"))
     (pin "2" (uuid "49301a6f-75b7-4462-ab54-6ba5e5af6f25"))
     (instances
@@ -3326,6 +3614,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 209.55 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RC0805FR-071M1L"
+      (at 209.55 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 209.55 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 209.55 129.54 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3365,6 +3665,18 @@
       (at 240.03 134.62 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-07100KL"
+      (at 240.03 134.62 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 240.03 134.62 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 240.03 134.62 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "3ba215de-2f5d-4ebe-a3ad-2c3b9c4c9c16"))
     (pin "2" (uuid "b4de83c0-48c5-40e2-9a69-750da1b284aa"))
     (instances
@@ -3398,6 +3710,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 204.47 190.5 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RC0805FR-0710KL"
+      (at 204.47 190.5 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 204.47 190.5 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 204.47 190.5 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3437,6 +3761,18 @@
       (at 199.39 214.63 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "NCP15XH103F03RC"
+      (at 199.39 214.63 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Murata"
+      (at 199.39 214.63 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 199.39 214.63 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "f89b658e-eb38-4431-969b-1a9be215cb51"))
     (pin "2" (uuid "528974e4-5341-4785-8b30-5e1435de8658"))
     (instances
@@ -3470,6 +3806,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 199.39 240.03 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21B104KBCNNNC"
+      (at 199.39 240.03 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 199.39 240.03 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 199.39 240.03 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3509,6 +3857,18 @@
       (at 394.97 180.34 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21A106KAYNNNE"
+      (at 394.97 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 394.97 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 394.97 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "fa7e7570-1e15-443d-99d3-c32769e2eb36"))
     (pin "2" (uuid "709c13d1-6d8f-41e2-9464-0af52e3f7d38"))
     (instances
@@ -3542,6 +3902,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 407.67 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21A106KAYNNNE"
+      (at 407.67 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 407.67 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 407.67 180.34 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3581,6 +3953,18 @@
       (at 420.37 180.34 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21B104KBCNNNC"
+      (at 420.37 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 420.37 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 420.37 180.34 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "c8b6192c-bb6a-4f37-88e1-bcffa801bd89"))
     (pin "2" (uuid "836ddb0c-1f62-4545-9ef8-bc905b3aacb7"))
     (instances
@@ -3614,6 +3998,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 289.56 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RC0805FR-0710KL"
+      (at 289.56 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 289.56 129.54 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 289.56 129.54 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3653,6 +4049,18 @@
       (at 304.8 124.46 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-0710KL"
+      (at 304.8 124.46 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 304.8 124.46 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 304.8 124.46 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "21e06527-f92d-42fd-9322-c334c8eac67f"))
     (pin "2" (uuid "91c4b2f8-363c-4b21-903b-c2625a9b9721"))
     (instances
@@ -3686,6 +4094,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 459.74 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "S2B-PH-K-S(LF)(SN)"
+      (at 459.74 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "JST"
+      (at 459.74 59.69 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "JST-PH"
       (at 459.74 59.69 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3725,6 +4145,18 @@
       (at 485.14 74.93 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "1812L300THPR"
+      (at 485.14 74.93 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Littelfuse"
+      (at 485.14 74.93 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "1812"
+      (at 485.14 74.93 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "42239a66-b430-4251-894a-62f10f350950"))
     (pin "2" (uuid "b9bff63f-57dc-40ab-b9a8-a8394258ab29"))
     (instances
@@ -3758,6 +4190,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 510.54 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "AO3401A"
+      (at 510.54 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Alpha & Omega"
+      (at 510.54 80.01 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "SOT-23"
       (at 510.54 80.01 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3798,6 +4242,18 @@
       (at 510.54 110.49 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-071ML"
+      (at 510.54 110.49 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 510.54 110.49 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 510.54 110.49 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "68e44388-88cd-4cfb-afb4-76c20a90eb1f"))
     (pin "2" (uuid "68f4632b-0080-439f-9ea9-83d7bbb32514"))
     (instances
@@ -3831,6 +4287,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 495.3 105.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RC0805FR-07100KL"
+      (at 495.3 105.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 495.3 105.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 495.3 105.41 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3870,6 +4338,18 @@
       (at 554.99 95.25 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "S2B-PH-K-S(LF)(SN)"
+      (at 554.99 95.25 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "JST"
+      (at 554.99 95.25 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "JST-PH"
+      (at 554.99 95.25 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "9a0a4057-cebc-4b60-86a0-eee3097f165b"))
     (pin "2" (uuid "4aab2675-3c81-4b29-bcc0-675645cd7ef1"))
     (instances
@@ -3903,6 +4383,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 110.49 299.72 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "TPS54202DDCR"
+      (at 110.49 299.72 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Texas Instruments"
+      (at 110.49 299.72 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "SOT-23-6"
       (at 110.49 299.72 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -3946,6 +4438,18 @@
       (at 154.94 299.72 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "MWSA0402S-100MT"
+      (at 154.94 299.72 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Sunlord"
+      (at 154.94 299.72 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "MWSA0402"
+      (at 154.94 299.72 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "fc2b00c9-2491-4b71-a057-ed02f2b87ae8"))
     (pin "2" (uuid "f2aad1a9-c741-4f9c-b011-8cef6c47f3d4"))
     (instances
@@ -3979,6 +4483,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 69.85 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21A106KAYNNNE"
+      (at 69.85 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 69.85 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 69.85 309.88 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -4018,6 +4534,18 @@
       (at 82.55 309.88 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21B104KBCNNNC"
+      (at 82.55 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 82.55 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 82.55 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "8d51fd57-30b4-486e-8a24-d801c08227c8"))
     (pin "2" (uuid "a9b3ecc8-9062-4c76-b309-8fe969a29dcc"))
     (instances
@@ -4051,6 +4579,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 85.09 279.4 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RC0805FR-07100KL"
+      (at 85.09 279.4 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 85.09 279.4 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 85.09 279.4 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -4090,6 +4630,18 @@
       (at 134.62 289.56 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21B104KBCNNNC"
+      (at 134.62 289.56 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 134.62 289.56 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 134.62 289.56 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "723cbeb6-73dd-42e5-8ecf-b419f5302a70"))
     (pin "2" (uuid "ec10ed6d-a265-4045-806f-e1c1c65b9c53"))
     (instances
@@ -4123,6 +4675,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 180.34 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21A106KAYNNNE"
+      (at 180.34 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 180.34 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 180.34 309.88 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -4162,6 +4726,18 @@
       (at 195.58 309.88 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "CL21A106KAYNNNE"
+      (at 195.58 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 195.58 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 195.58 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "066579eb-8522-4a14-90dd-585c011130b7"))
     (pin "2" (uuid "1cab8a78-0b50-4dd7-98f4-f1065064e720"))
     (instances
@@ -4195,6 +4771,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 209.55 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "CL21B104KBCNNNC"
+      (at 209.55 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Samsung"
+      (at 209.55 309.88 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 209.55 309.88 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -4234,6 +4822,18 @@
       (at 170.18 335.28 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-07100KL"
+      (at 170.18 335.28 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 170.18 335.28 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 170.18 335.28 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "8eb0beb2-a163-432e-98cc-95d015148f2c"))
     (pin "2" (uuid "d04333cc-4253-43b5-80c8-4284ef74ffe8"))
     (instances
@@ -4267,6 +4867,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 170.18 360.68 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "RC0805FR-0713K3L"
+      (at 170.18 360.68 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 170.18 360.68 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 170.18 360.68 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -4306,6 +4918,18 @@
       (at 330.2 320.04 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "S2B-PH-K-S(LF)(SN)"
+      (at 330.2 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "JST"
+      (at 330.2 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "JST-PH"
+      (at 330.2 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "a72279c5-8e0e-4b15-9284-5700d0c6141a"))
     (pin "2" (uuid "6d9b5a91-7355-4560-835c-fcd7dca21e22"))
     (instances
@@ -4342,6 +4966,18 @@
       (at 270.51 320.04 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "S2B-PH-K-S(LF)(SN)"
+      (at 270.51 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "JST"
+      (at 270.51 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "JST-PH"
+      (at 270.51 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "51ec052e-bb20-4456-a29b-310b69a50fb2"))
     (pin "2" (uuid "4fcb63e9-0d99-44cb-b62b-5bebd5ed1368"))
     (instances
@@ -4375,6 +5011,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 389.89 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "61300311121"
+      (at 389.89 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Wurth"
+      (at 389.89 320.04 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "1x03-2.54"
       (at 389.89 320.04 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -4415,6 +5063,18 @@
       (at 299.72 359.41 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-071KL"
+      (at 299.72 359.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 299.72 359.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 299.72 359.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "0d89dc66-cac8-4bec-8307-a58418d6d314"))
     (pin "2" (uuid "555bf419-78f7-4827-a884-a0ce49f50900"))
     (instances
@@ -4448,6 +5108,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 299.72 382.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "150080GS75000"
+      (at 299.72 382.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Wurth"
+      (at 299.72 382.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 299.72 382.27 0)
       (effects (font (size 1.27 1.27)) hide)
     )
@@ -4487,6 +5159,18 @@
       (at 420.37 359.41 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (property "MPN" "RC0805FR-071KL"
+      (at 420.37 359.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "YAGEO"
+      (at 420.37 359.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
+      (at 420.37 359.41 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
     (pin "1" (uuid "48542bf7-3c5a-4929-a06b-765de0902362"))
     (pin "2" (uuid "90c50329-ee95-41af-a3b7-cd2cff260406"))
     (instances
@@ -4520,6 +5204,18 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~"
+      (at 420.37 382.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "MPN" "150080RS75000"
+      (at 420.37 382.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Manufacturer" "Wurth"
+      (at 420.37 382.27 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Package" "0805"
       (at 420.37 382.27 0)
       (effects (font (size 1.27 1.27)) hide)
     )
