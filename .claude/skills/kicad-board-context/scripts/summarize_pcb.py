@@ -135,7 +135,9 @@ def summarize(pcb_path: str) -> dict:
 def emit_yaml(doc: dict) -> str:
     """Small hand emitter — keeps the summary diff-friendly and stable."""
     def q(s):
-        return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+        out = str(s).replace("\\", "\\\\").replace('"', '\\"')
+        out = "".join(f"\\x{ord(c):02x}" if ord(c) < 0x20 else c for c in out)
+        return '"' + out + '"'
 
     lines = []
     w = lines.append

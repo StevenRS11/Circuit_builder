@@ -241,3 +241,105 @@ class TestCheckBlock:
             os.path.join(blocks_dir, "sense8_frontend"))
         assert not passed
         assert any("two-source policy" in i.message for i in issues)
+
+
+class TestAutoNameCollision:
+    def test_label_named_like_auto_net_is_not_clobbered(self, tmp_path):
+        """Regression (found extracting the NAU7802 block from DualScale): a
+        label literally named '_NET_1' plus an unlabeled floating group used
+        to collide — the auto-namer overwrote the labeled net in the dict."""
+        from validate_kicad_sch import extract_netlist
+        sch = KicadSchematic("Collide")
+        sch.add_lib_symbol_resistor()
+        sch.place_component("Device:R", "R1", "10k", 100, 100,
+                            footprint="Resistor_SMD:R_0805_2012Metric")
+        sch.place_component("Device:R", "R2", "10k", 160, 100,
+                            footprint="Resistor_SMD:R_0805_2012Metric")
+        sch.label_at_pin("R1", "1", "_NET_1")
+        sch.label_at_pin("R1", "2", "_NET_2")
+        # R2 left fully unconnected -> two auto-named single-pin groups
+        path = str(tmp_path / "collide.kicad_sch")
+        sch.save(path)
+        netlist = extract_netlist(load_kicad_sch(path, resolve_from_libraries=False))
+        assert netlist.get_net_for_pin("R1", "1") == "_NET_1"
+        assert netlist.get_net_for_pin("R1", "2") == "_NET_2"
+        # the floating pins got fresh names, not the labeled ones
+        assert netlist.get_net_for_pin("R2", "1") not in ("_NET_1", "_NET_2")
+
+
+class TestForcedRail:
+    def test_label_powered_board_needs_rail_flag(self, tmp_path):
+        """DualScale's 3V3 is a plain label net (no power symbols); --rail
+        forces rail treatment so the block gets power symbols + a rails entry."""
+        donor, fplib = _build_donor(tmp_path)
+        # rewire: donor uses power symbols; simulate a label-only rail by
+        # forcing a signal net that goes nowhere external? Use the real donor
+        # net I2C_SDA as a negative control instead: forcing a rail on it
+        # must work mechanically, and a port on a rail must be refused.
+        ports = {k: v for k, v in PORTS.items() if k != "SDA"}
+        summary = xb.extract_block(
+            donor, "railtest", ["U1", "R1", "C1"], ports,
+            blocks_dir=str(tmp_path / "blocks"),
+            extra_fp=[f"TestFp={fplib}"], forced_rails=["I2C_SDA"])
+        assert "I2C_SDA" in summary["rails"]
+        passed, issues = cb.check_block(
+            os.path.join(str(tmp_path / "blocks"), "railtest"))
+        assert passed, [i.message for i in issues if i.severity == "error"]
+
+    def test_port_on_forced_rail_is_refused(self, tmp_path):
+        donor, fplib = _build_donor(tmp_path)
+        with pytest.raises(ValueError, match="power nets cannot be ports"):
+            xb.extract_block(donor, "railport", ["U1", "R1", "C1"], dict(PORTS),
+                             blocks_dir=str(tmp_path / "blocks"),
+                             extra_fp=[f"TestFp={fplib}"],
+                             forced_rails=["I2C_SDA"])
+
+    def test_rail_must_touch_block(self, tmp_path):
+        donor, fplib = _build_donor(tmp_path)
+        with pytest.raises(ValueError, match="does not touch"):
+            xb.extract_block(donor, "railmiss", ["U1", "R1", "C1"], dict(PORTS),
+                             blocks_dir=str(tmp_path / "blocks"),
+                             extra_fp=[f"TestFp={fplib}"],
+                             forced_rails=["NO_SUCH_NET"])
+
+
+class TestInternalAutoNetRenaming:
+    def test_source_auto_names_do_not_travel(self, tmp_path):
+        """Internal nets known only by source auto-names (_NET_7) are renamed
+        to IC-anchored names (N_U1_6) — auto-names are position-derived and
+        must not become a reusable block's net names."""
+        fplib = tmp_path / "TestFp.pretty"
+        fplib.mkdir()
+        (fplib / "SENSE-8.kicad_mod").write_text(SENSE8_MOD, encoding="utf-8")
+        sch = KicadSchematic("Wired Donor")
+        sch.add_lib_symbol_resistor()
+        sch.add_lib_symbol_ic("Custom:SENSE8", pins=[
+            ("1", "VDD", "power_in", "top", 0),
+            ("2", "GND", "power_in", "bottom", 0),
+            ("6", "INP", "input", "left", 0),
+        ])
+        sch.add_lib_symbol_power("+3V3")
+        sch.add_lib_symbol_power("GND")
+        sch.place_component("Custom:SENSE8", "U1", "SENSE8", 100, 100,
+                            footprint="TestFp:SENSE-8")
+        sch.place_component("Device:R", "R1", "1k", 140, 100,
+                            footprint="Resistor_SMD:R_0805_2012Metric")
+        sch.power_at_pin("U1", "1", "+3V3")
+        sch.gnd_at_pin("U1", "2")
+        sch.power_at_pin("R1", "2", "+3V3")
+        # direct WIRE between U1.6 and R1.1 -> unlabeled internal net
+        x1, y1 = sch.get_pin_position("U1", "6")
+        x2, y2 = sch.get_pin_position("R1", "1")
+        sch.add_wire(x1, y1, x1 - 5.08, y1)
+        sch.add_wire(x1 - 5.08, y1, x1 - 5.08, y2)
+        sch.add_wire(x1 - 5.08, y2, x2, y2)
+        path = str(tmp_path / "wired.kicad_sch")
+        sch.save(path)
+
+        summary = xb.extract_block(path, "renametest", ["U1", "R1"], {},
+                                   blocks_dir=str(tmp_path / "blocks"),
+                                   extra_fp=[f"TestFp={fplib}"])
+        assert summary["internal_nets"] == ["N_U1_6"]
+        passed, issues = cb.check_block(
+            os.path.join(str(tmp_path / "blocks"), "renametest"))
+        assert passed, [i.message for i in issues if i.severity == "error"]

@@ -751,8 +751,12 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
                 root_is_power[root] = is_power
                 root_has_label[root] = True
 
-    # Auto-name unnamed nets
+    # Auto-name unnamed nets — never colliding with an existing labeled net
+    # (a schematic can legitimately carry a label literally named "_NET_1",
+    # e.g. a block sheet extracted from a board's auto-named nets; without
+    # this guard the auto-named group silently CLOBBERS the labeled net).
     auto_idx = 0
+    used_names = set(root_to_name.values())
     for root in groups:
         if root not in root_to_name:
             # Only name it if it has pins
@@ -760,7 +764,12 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
             has_pins = any(c in coord_to_pins for c in group_coords)
             if has_pins:
                 auto_idx += 1
-                root_to_name[root] = f"_NET_{auto_idx}"
+                name = f"_NET_{auto_idx}"
+                while name in used_names:
+                    auto_idx += 1
+                    name = f"_NET_{auto_idx}"
+                used_names.add(name)
+                root_to_name[root] = name
                 root_is_power[root] = False
                 root_has_label[root] = False
 

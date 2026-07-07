@@ -70,6 +70,41 @@ boards:
     lessons: []
     field_reports: []
 
+  - board: DualScale_Compact
+    rev: "combined (post-NAU merge)"
+    status: validated
+    bench_date: "2026-07-06"   # user-confirmed (bench session wrapped this date)
+    outputs_dir: "PaddleDNA-Circuits/projects/DualScale_Combined (external repo)"
+    summary: >-
+      ESP32-S3 dual-scale board with the NAU7802 dual load-cell front-end
+      merged in (I2C on GP3/GP4, DRDY GP6, ratiometric AVDD excitation,
+      full per-channel anti-alias filtering added after the addon docs:
+      1k series + 100nF diff + 10nF CM to AVDD and GND). User-reported
+      working; first block extracted from it (2026-07-06). Extraction also
+      surfaced two artifact-hygiene findings, both now encoded in tooling:
+      stale property-cache refs from the addon paste (cache said C13/C14,
+      active refs C3/C11) and a control character embedded in a component
+      Value ("USBPD<0x1f>_in" — fix the name in KiCad at leisure).
+    lessons:
+      - defect: >-
+          Cross-project paste left stale Reference property caches (C13/C14)
+          shadowing the active instance refs (C3/C11) — every regex-based
+          field reader (BOM harvest, plugin cross-check, field bake) read the
+          WRONG refs, duplicating real components and mis-targeting bakes.
+        class: process
+        encoded_in:
+          - ".claude/skills/kicad-schematic-gen/scripts/crosscheck_pcbway_plugin_bom.py::def resolve_active_reference"
+          - ".claude/skills/kicad-schematic-gen/scripts/bake_bom_fields.py::instances-resolved"
+      - defect: >-
+          A component Value carried an embedded control character
+          (USBPD\x1f_in, stray keychord during rename) — crashed YAML
+          emission until quoting escaped control chars.
+        class: process
+        encoded_in:
+          - ".claude/skills/kicad-board-context/scripts/extract_netlist.py::Control characters are escaped"
+    blocks_extracted: [nau7802_dual_loadcell]
+    field_reports: []   # pending: run the Stage-10 ritual retroactively with the user
+
 # ── template entry ───────────────────────────────────────────────────
 #  - board: {name}
 #    rev: "{rev}"

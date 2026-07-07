@@ -66,8 +66,13 @@ def _pinsort(pin: str):
 
 
 def _q(s) -> str:
-    """Always-double-quoted YAML scalar."""
-    return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+    """Always-double-quoted YAML scalar. Control characters are escaped as
+    \\xNN — real boards contain them (e.g. a stray keychord embedded a 0x1F
+    inside a component Value on DualScale), and the emitted YAML must both
+    load and preserve the oddity so it can be reported as a finding."""
+    out = str(s).replace("\\", "\\\\").replace('"', '\\"')
+    out = "".join(f"\\x{ord(c):02x}" if ord(c) < 0x20 else c for c in out)
+    return '"' + out + '"'
 
 
 def _sha256(path: str) -> str:

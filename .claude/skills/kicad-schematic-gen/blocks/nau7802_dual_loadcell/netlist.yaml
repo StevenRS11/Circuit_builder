@@ -1,0 +1,220 @@
+# Block netlist fragment (Stage-5b format) — EXTRACTED, self-verified
+# source board: DualScale_Compact.kicad_sch sha256 5cbc84b2749bf05a…
+project: "nau7802_dual_loadcell"
+source: "DualScale_Compact.kicad_sch"
+
+# Ports — boundary nets renamed to their port names (the sheet's
+# hierarchical labels). dir is the KiCad sheet-pin shape.
+ports:
+  - { name: "DRDY", dir: output, source_net: "GP6" }
+  - { name: "SCL", dir: input, source_net: "GP4" }
+  - { name: "SDA", dir: bidirectional, source_net: "GP3" }
+
+components:
+  C2:
+    part: "1uF"
+    pins: ["1", "2"]
+  C3:
+    part: "100nF"
+    pins: ["1", "2"]
+  C9:
+    part: "100nF"
+    pins: ["1", "2"]
+  C10:
+    part: "1uF"
+    pins: ["1", "2"]
+  C11:
+    part: "100nF"
+    pins: ["1", "2"]
+  C12:
+    part: "100nF"
+    pins: ["1", "2"]
+  C13:
+    part: "100nF"
+    pins: ["1", "2"]
+  C14:
+    part: "100nF"
+    pins: ["1", "2"]
+  C15:
+    part: "10nF"
+    pins: ["1", "2"]
+  C16:
+    part: "10nF"
+    pins: ["1", "2"]
+  C17:
+    part: "10nF"
+    pins: ["1", "2"]
+  C18:
+    part: "10nF"
+    pins: ["1", "2"]
+  C19:
+    part: "10nF"
+    pins: ["1", "2"]
+  C20:
+    part: "10nF"
+    pins: ["1", "2"]
+  C21:
+    part: "10nF"
+    pins: ["1", "2"]
+  C22:
+    part: "10nF"
+    pins: ["1", "2"]
+  J4:
+    part: "LoadCell A"
+    pins: ["1", "2", "3", "4"]
+  J5:
+    part: "LoadCell B"
+    pins: ["1", "2", "3", "4"]
+  R2:
+    part: "4.7k"
+    pins: ["1", "2"]
+  R3:
+    part: "4.7k"
+    pins: ["1", "2"]
+  R4:
+    part: "1k"
+    pins: ["1", "2"]
+  R5:
+    part: "1k"
+    pins: ["1", "2"]
+  R6:
+    part: "1k"
+    pins: ["1", "2"]
+  R7:
+    part: "1k"
+    pins: ["1", "2"]
+  U2:
+    part: "NAU7802"
+    pins: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"]
+
+nets:
+  "3V3":
+    type: power
+    pins:
+      - { ref: C10, pin: "1" }
+      - { ref: C12, pin: "1" }
+      - { ref: R2, pin: "1" }
+      - { ref: R3, pin: "1" }
+      - { ref: U2, pin: "15" }
+    power_symbols: ["3V3"]
+  "AVDD":
+    type: signal
+    pins:
+      - { ref: C2, pin: "1" }
+      - { ref: C9, pin: "1" }
+      - { ref: C11, pin: "1" }
+      - { ref: C15, pin: "2" }
+      - { ref: C16, pin: "2" }
+      - { ref: C17, pin: "2" }
+      - { ref: C18, pin: "1" }
+      - { ref: J4, pin: "1" }
+      - { ref: J5, pin: "1" }
+      - { ref: U2, pin: "1" }
+      - { ref: U2, pin: "16" }
+    labels: ["AVDD"]
+  "GND":
+    type: power
+    pins:
+      - { ref: C2, pin: "2" }
+      - { ref: C3, pin: "2" }
+      - { ref: C9, pin: "2" }
+      - { ref: C10, pin: "2" }
+      - { ref: C11, pin: "2" }
+      - { ref: C12, pin: "2" }
+      - { ref: C19, pin: "2" }
+      - { ref: C20, pin: "2" }
+      - { ref: C21, pin: "1" }
+      - { ref: C22, pin: "1" }
+      - { ref: J4, pin: "4" }
+      - { ref: J5, pin: "4" }
+      - { ref: U2, pin: "7" }
+      - { ref: U2, pin: "8" }
+      - { ref: U2, pin: "9" }
+    power_symbols: ["GND"]
+  "SDA":
+    type: signal
+    pins:
+      - { ref: R3, pin: "2" }
+      - { ref: U2, pin: "14" }
+    labels: ["SDA"]
+  "SCL":
+    type: signal
+    pins:
+      - { ref: R2, pin: "2" }
+      - { ref: U2, pin: "13" }
+    labels: ["SCL"]
+  "DRDY":
+    type: signal
+    pins:
+      - { ref: U2, pin: "12" }
+    labels: ["DRDY"]
+  "LC_A_SIGN":
+    type: signal
+    pins:
+      - { ref: J4, pin: "3" }
+      - { ref: R6, pin: "1" }
+    labels: ["LC_A_SIGN"]
+  "LC_A_SIGP":
+    type: signal
+    pins:
+      - { ref: J4, pin: "2" }
+      - { ref: R7, pin: "1" }
+    labels: ["LC_A_SIGP"]
+  "LC_B_SIGN":
+    type: signal
+    pins:
+      - { ref: J5, pin: "3" }
+      - { ref: R4, pin: "1" }
+    labels: ["LC_B_SIGN"]
+  "LC_B_SIGP":
+    type: signal
+    pins:
+      - { ref: J5, pin: "2" }
+      - { ref: R5, pin: "1" }
+    labels: ["LC_B_SIGP"]
+  "N_U2_2":
+    type: signal
+    pins:
+      - { ref: C13, pin: "2" }
+      - { ref: C15, pin: "1" }
+      - { ref: C21, pin: "2" }
+      - { ref: R6, pin: "2" }
+      - { ref: U2, pin: "2" }
+    labels: ["N_U2_2"]
+  "N_U2_3":
+    type: signal
+    pins:
+      - { ref: C13, pin: "1" }
+      - { ref: C16, pin: "1" }
+      - { ref: C22, pin: "2" }
+      - { ref: R7, pin: "2" }
+      - { ref: U2, pin: "3" }
+    labels: ["N_U2_3"]
+  "N_U2_4":
+    type: signal
+    pins:
+      - { ref: C14, pin: "2" }
+      - { ref: C18, pin: "2" }
+      - { ref: C19, pin: "1" }
+      - { ref: R4, pin: "2" }
+      - { ref: U2, pin: "4" }
+    labels: ["N_U2_4"]
+  "N_U2_5":
+    type: signal
+    pins:
+      - { ref: C14, pin: "1" }
+      - { ref: C17, pin: "1" }
+      - { ref: C20, pin: "1" }
+      - { ref: R5, pin: "2" }
+      - { ref: U2, pin: "5" }
+    labels: ["N_U2_5"]
+  "VBG":
+    type: signal
+    pins:
+      - { ref: C3, pin: "1" }
+      - { ref: U2, pin: "6" }
+    labels: ["VBG"]
+
+no_connects:
+  - { ref: U2, pin: "10", reason: "NC in source board" }
+  - { ref: U2, pin: "11", reason: "NC in source board" }

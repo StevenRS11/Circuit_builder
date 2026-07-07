@@ -254,3 +254,56 @@ class TestBakePcb:
         res2 = bake_file(str(p), fields, "pcb")
         assert p.read_text(encoding="utf-8") == first
         assert res2["field_writes"] == 0
+
+
+STALE_CACHE_SCH = """(kicad_sch (version 20230121) (generator eeschema)
+  (uuid "aaaaaaaa-0000-0000-0000-000000000000")
+  (lib_symbols)
+  (symbol (lib_id "Device:C") (at 50.8 50.8 0) (unit 1)
+    (property "Reference" "C13"
+      (at 0 0 0)
+    )
+    (property "Value" "100nF"
+      (at 0 0 0)
+    )
+    (property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+      (at 0 0 0)
+    )
+    (instances
+      (project ""
+        (path "/99999999-0000-0000-0000-000000000000"
+          (reference "C13") (unit 1)
+        )
+      )
+      (project "real"
+        (path "/aaaaaaaa-0000-0000-0000-000000000000"
+          (reference "C3") (unit 1)
+        )
+      )
+    )
+  )
+)
+"""
+
+
+class TestStaleCacheRefResolution:
+    """Regression (DualScale): symbols pasted cross-project keep a stale
+    Reference property (C13) while the ACTIVE instance ref differs (C3).
+    Regex-based readers must resolve like the loader, or BOM harvests
+    duplicate real components and bakes hit the wrong block."""
+
+    def test_parse_symbols_uses_active_instance_ref(self):
+        from crosscheck_pcbway_plugin_bom import parse_symbols
+        comps = parse_symbols(STALE_CACHE_SCH)
+        assert [c["ref"] for c in comps] == ["C3"]
+
+    def test_bake_targets_active_ref(self, tmp_path):
+        p = tmp_path / "stale.kicad_sch"
+        p.write_text(STALE_CACHE_SCH, encoding="utf-8")
+        fields = _fields_by_ref(
+            "| Ref | Value | Part Number | Manufacturer | Package | Footprint |\n"
+            "|--|--|--|--|--|--|\n"
+            "| C3 | 100nF | CL21B104KBCNNNC | Samsung | 0805 | Capacitor_SMD:C_0805_2012Metric |\n")
+        res = bake_file(str(p), fields, "sch")
+        assert res["refs_touched"] == 1
+        assert '(property "MPN" "CL21B104KBCNNNC"' in p.read_text(encoding="utf-8")

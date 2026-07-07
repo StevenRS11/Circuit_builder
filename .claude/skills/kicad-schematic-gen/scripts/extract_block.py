@@ -89,7 +89,9 @@ def _sha256(path):
 
 
 def _q(s):
-    return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+    out = str(s).replace("\\", "\\\\").replace('"', '\\"')
+    out = "".join(f"\\x{ord(c):02x}" if ord(c) < 0x20 else c for c in out)
+    return '"' + out + '"'
 
 
 def _pinsort(pin):
@@ -217,10 +219,13 @@ def promote_footprints(fp_ids, blocks_dir, project_dir=None, extra_fp=None):
 def extract_block(sch_path, name, refs, ports, blocks_dir=DEFAULT_BLOCKS_DIR,
                   desc="", validated_on="", bench_date="", field_report="",
                   grid_layout=False, project_dir=None, extra_sym=None,
-                  extra_fp=None):
+                  extra_fp=None, forced_rails=()):
     """Carve the block and write blocks/{name}/. Returns a summary dict.
 
     ports: {port_name: (source_net, shape)}
+    forced_rails: net names to treat as power rails even when the donor board
+    names them with plain labels instead of power symbols (common on
+    hand-drawn boards — DualScale's 3V3 is a label net).
     Raises ValueError on any contract violation (bundle is not written).
     """
     with open(sch_path, "r", encoding="utf-8") as f:
@@ -237,6 +242,26 @@ def extract_block(sch_path, name, refs, ports, blocks_dir=DEFAULT_BLOCKS_DIR,
                              f"{sorted(PORT_SHAPES)}")
 
     nets = classify_nets(sch, set(refs))
+    for rail in forced_rails:
+        if rail not in nets:
+            raise ValueError(f"--rail {rail}: net does not touch the block")
+        nets[rail]["kind"] = "rail"
+
+    # Internal nets that only exist as source-board auto-names (_NET_7, N$…)
+    # get stable, semantic names anchored on the block's IC pin — auto-names
+    # are position/order-derived and must not travel into a reusable block.
+    renames = {}
+    for net_name, info in nets.items():
+        if info["kind"] == "internal" and \
+                re.match(r"^(_NET_\d+|N\$)", net_name) and \
+                not _is_floating_singleton(net_name, info):
+            anchor = min(info["block_pins"],
+                         key=lambda rp: (rp[0][0] not in "UQ", _refsort(rp[0]),
+                                         _pinsort(rp[1])))
+            renames[net_name] = f"N_{anchor[0]}_{anchor[1]}"
+    for old, new in renames.items():
+        nets[new] = nets.pop(old)
+
     net_to_port = {net: (pname, shape) for pname, (net, shape) in ports.items()}
 
     # Contract checks: every boundary net mapped, every mapped net real.
@@ -519,6 +544,10 @@ def main():
                     metavar="NAME=NET[:shape]",
                     help="map a boundary net to a port (repeatable); shape: "
                          "input|output|bidirectional|tri_state|passive")
+    ap.add_argument("--rail", action="append", default=[], metavar="NET",
+                    help="treat this net as a power rail even though the donor "
+                         "board names it with a label, not a power symbol "
+                         "(repeatable)")
     ap.add_argument("--desc", default="", help="one-line block description")
     ap.add_argument("--validated-on", default="", help="board + rev (provenance)")
     ap.add_argument("--bench-date", default="")
@@ -546,7 +575,7 @@ def main():
             validated_on=args.validated_on, bench_date=args.bench_date,
             field_report=args.field_report, grid_layout=args.grid_layout,
             project_dir=args.project_dir, extra_sym=args.sym_lib,
-            extra_fp=args.fp_lib)
+            extra_fp=args.fp_lib, forced_rails=args.rail)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1

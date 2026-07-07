@@ -98,21 +98,46 @@ def _first_of(block: str, keys) -> str:
     return ""
 
 
+_INSTANCE_RE = re.compile(
+    r'\(project "[^"]*"\s*\(path "([^"]+)"\s*\(reference "([^"]+)"\)')
+
+
+def resolve_active_reference(block: str, root_uuid: str):
+    """The reference KiCad actually uses for this placed-symbol block.
+
+    The ``(property "Reference")`` is a stale CACHE: after a cross-project
+    paste / re-annotation the active reference lives in the ``(instances)``
+    entry whose path matches this file's root sheet uuid (observed on
+    DualScale: cache said C13/C14, active refs were C3/C11 — the cache refs
+    duplicated real components). Falls back to the property when no instance
+    matches (generator output pre-instances, or root uuid unknown).
+    """
+    if root_uuid:
+        for path, ref in _INSTANCE_RE.findall(block):
+            if path == f"/{root_uuid}" or path.startswith(f"/{root_uuid}/"):
+                return ref
+    return _field(block, "Reference")
+
+
 def parse_symbols(sch_text: str) -> list:
     """Return one dict per placed, in-BOM symbol instance in the schematic.
 
     Placed symbols are identified structurally — a placed instance carries a
     ``(lib_id ...)`` while ``lib_symbols`` definitions never do — rather than
     by indentation, so this works on both KiCad-saved files (tab-indented)
-    and generator-emitted files (space-indented).
+    and generator-emitted files (space-indented). References are resolved
+    from the instances block (see resolve_active_reference), matching the
+    loader and KiCad itself.
     """
+    root_m = re.search(r'\(uuid "([^"]+)"\)', sch_text)
+    root_uuid = root_m.group(1) if root_m else ""
     comps = []
     for m in re.finditer(r"(?m)^[ \t]*(\(symbol)\b", sch_text):
         s = m.start(1)
         block = sch_text[s:_balanced_end(sch_text, s)]
         if "(lib_id " not in block:
             continue  # a lib_symbols definition, not a placed instance
-        ref = _field(block, "Reference")
+        ref = resolve_active_reference(block, root_uuid)
         if not ref or ref.startswith("#"):
             continue
         if re.search(r"\(in_bom no\)", block):

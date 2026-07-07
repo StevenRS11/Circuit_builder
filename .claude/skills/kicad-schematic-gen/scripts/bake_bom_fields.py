@@ -127,7 +127,15 @@ def _iter_blocks(text, head):
         i = end
 
 
-def _ref_of(block):
+def _ref_of(block, root_uuid=""):
+    """Active reference for a block — instances-resolved for schematic symbols
+    (the property cache goes stale after cross-project pastes; baking by the
+    cached ref would write fields onto the WRONG component)."""
+    if root_uuid:
+        from crosscheck_pcbway_plugin_bom import resolve_active_reference
+        ref = resolve_active_reference(block, root_uuid)
+        if ref:
+            return ref
     m = re.search(r'\(property "Reference" "([^"]+)"', block)
     return m.group(1) if m else None
 
@@ -232,13 +240,17 @@ def bake_file(path, fields_by_ref, kind, force=False):
     text = Path(path).read_text(encoding="utf-8")
     head = "(symbol" if kind == "sch" else "(footprint"
     managed = MANAGED_FIELDS_SCH if kind == "sch" else MANAGED_FIELDS_PCB
+    root_uuid = ""
+    if kind == "sch":
+        rm = re.search(r'\(uuid "([^"]+)"\)', text)
+        root_uuid = rm.group(1) if rm else ""
     # Collect target blocks (instance symbols / footprints with a Reference we know).
     targets = []
     for start, end in _iter_blocks(text, head):
         block = text[start:end]
         if kind == "sch" and "(instances" not in block:
             continue  # skip lib_symbols definitions
-        ref = _ref_of(block)
+        ref = _ref_of(block, root_uuid if kind == "sch" else "")
         if ref and ref in fields_by_ref:
             targets.append((start, end, ref))
     changed_refs, removed_fields = {}, {}

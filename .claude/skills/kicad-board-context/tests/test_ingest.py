@@ -233,3 +233,13 @@ class TestSummarizePcb:
     def test_yaml_emission_runs(self, summary):
         text = summarize_pcb.emit_yaml(summary)
         assert "routed_nets:" in text and "copper_layers:" in text
+
+
+class TestControlCharQuoting:
+    def test_yaml_quote_escapes_control_chars(self):
+        """Regression (DualScale): a component Value carried an embedded 0x1F
+        (stray keychord during a rename) — emitted YAML must load AND
+        preserve the oddity so it can be reported as a finding."""
+        import yaml as _yaml
+        q = extract_netlist._q("USBPD\x1f_in")
+        assert _yaml.safe_load(q) == "USBPD\x1f_in"

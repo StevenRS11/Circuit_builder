@@ -19,9 +19,21 @@ extraction, dangling-wire check), `blocks/` registry + `CircuitBlocks.pretty`
 promotion, `extract_block.py` (port contract explicit; declared port overrides
 internal classification; power nets can't be ports; self-verifies and removes
 the bundle on failure), `check_block.py` (standalone validation, port/rail/BOM
-parity, two-source dependency policy, TODO-judgment warnings). **Pending W1a
-close-out: the one-shot NAU7802 proof** — needs the DualScale board files;
-then W1b (engine composes sheets) / bulk seeding per the order below. W2 shipped:
+parity, two-source dependency policy, TODO-judgment warnings).
+
+**W1a close-out: NAU7802 proof DONE (2026-07-06).** `nau7802_dual_loadcell`
+extracted from the real DualScale_Compact combined board: 25 components, 3
+ports (SDA/SCL/DRDY), rails 3V3(+forced-rail flag, added for label-powered
+donors)/GND, JST-PH footprint promoted into CircuitBlocks, contract fully
+filled from the addon's verified DC analysis, `check_block --strict` clean,
+ledger entry recorded. The proof shook out and fixed 4 real bugs (all with
+regression tests): extract_netlist auto-name collision clobbering labeled
+nets; stale property-cache refs fooling every regex field reader (now
+instances-resolved via `resolve_active_reference`); control chars in
+component values crashing YAML emission; source auto-net names traveling
+into blocks (now renamed to IC-anchored `N_U2_x`). Pending from the user:
+DualScale bench_date + retroactive field report. → Next: **W1b** (engine
+composes sheets) then bulk fleet seeding. W2 shipped:
 `templates/10_bringup.md` + `templates/10_field_report.md`,
 `references/promotion.md`, `validated_boards.yaml` (seeded with battery_3s
 v3.0 failure + lessons and v3.1 in-bringup), `scripts/check_ledger.py`
