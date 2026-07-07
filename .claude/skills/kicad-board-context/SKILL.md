@@ -248,11 +248,15 @@ documents as the prior-stage inputs (they are format-identical):
 - new functional block → enter at Stage 1/2 with the intent doc as the spec
   baseline; existing rails/nets are constraints.
 - value/part changes only → enter at Stage 3/4.
-- Note: emitting a module as a placeable fragment of an existing schematic is
-  a generator-skill TODO ("Module fragment / hierarchical-sheet output") — set
-  expectations accordingly: today the deliverable for MODIFY is the designed
-  module + explicit integration instructions (nets to tie, refdes ranges),
-  not an auto-merged schematic.
+- Note on placeable modules (W1b): if the addition matches a proven block in
+  the generator's `blocks/` registry, the deliverable can be that block's
+  `sheet.kicad_sch` — the user places it as a hierarchical sheet in KiCad
+  ("Import Sheet Pins") per `blocks/README.md`. The engine also composes
+  blocks automatically via the layout YAML `blocks:` section, but only into
+  schematics it generates; auto-merging into the user's existing hand-drawn
+  file stays off-limits (rule 1). For non-block modules the deliverable
+  remains the designed module + explicit integration instructions (nets to
+  tie, refdes ranges).
 
 ---
 

@@ -5,7 +5,7 @@ name: "nau7802_dual_loadcell"
 description: "Dual load-cell bridge front-end: NAU7802 24-bit ADC, ratiometric AVDD excitation, per-channel anti-alias filter (1k series + 100nF diff + 10nF CM to AVDD and GND), I2C + DRDY interface"
 provenance:
   validated_on: "DualScale_Compact (combined board)"
-  bench_date: null
+  bench_date: "2026-07-06"
   field_report: null
   extracted_from: "DualScale_Compact.kicad_sch"
   source_sha256: "5cbc84b2749bf05a3c0c4095503a58be815f84774770b6a52e2274defbbac080"

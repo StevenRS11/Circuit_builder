@@ -91,3 +91,31 @@ symbols:
       - ["2", "GND", "power_in",  "bottom", 0]
       - ["5", "VOUT","power_out", "right",  0]
       - ["4", "NC",  "no_connect","right",  1]
+
+# ── Blocks: compose proven subcircuits from the blocks/ registry (W1b). ──────
+# Each instance clones the block's validated child sheet next to the output
+# (refs re-annotated into a per-instance range: U2 -> U102, second instance
+# U202, ... — override with refdes_base) and places a hierarchical sheet
+# symbol wired through its ports. Block components do NOT appear in this
+# file's placements, the netlist, or the BOM — the bundle owns them; the
+# engine emits {out}_bom_flat.md with the merged whole-board BOM for Stage 9.
+#
+# Rules the engine gates: port_map must cover the block's contract ports
+# EXACTLY (see blocks/{name}/block.yaml); every mapped net must be declared in
+# the netlist YAML or be a power net; every rail the block requires must be in
+# power_nets above (GND implicit). READ block.yaml `constraints:` first — they
+# are judgment the engine does not script (e.g. NAU7802's I2C address is fixed
+# in silicon: two instances need two buses).
+#
+# blocks:
+#   scale1:
+#     block: nau7802_dual_loadcell    # directory under the blocks/ registry
+#     x: 180
+#     y: 80
+#     port_map:                        # port (from block.yaml) -> board net
+#       SDA: I2C_SDA
+#       SCL: I2C_SCL
+#       DRDY: SCALE1_DRDY
+#     # refdes_base: 300               # optional explicit range base
+#
+# blocks_dir: "path/to/blocks"         # optional registry override (--blocks-dir)

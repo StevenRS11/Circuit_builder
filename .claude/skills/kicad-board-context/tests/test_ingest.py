@@ -81,6 +81,52 @@ class TestExtractNetlist:
         assert auto1 == auto2 and auto1  # present and stable across runs
 
 
+class TestExtractHierarchical:
+    """The reviewer's flat-only limitation is gone (W1b): a parent with a
+    hierarchical child sheet ingests as one board — child components in the
+    manifest, port nets merged, sheet-local nets 'instance/'-prefixed."""
+
+    @pytest.fixture(scope="class")
+    def board(self, tmp_path_factory):
+        from generate_kicad_sch import KicadSchematic
+        tmp = tmp_path_factory.mktemp("hier")
+        ch = KicadSchematic("Child")
+        ch.add_lib_symbol_resistor()
+        ch.add_lib_symbol_power("GND")
+        ch.place_component("Device:R", "R10", "10k", 100, 100,
+                           footprint="Resistor_SMD:R_0805_2012Metric")
+        ch.hlabel_at_pin("R10", "1", "P", shape="input")
+        ch.gnd_at_pin("R10", "2")
+        ch.save(str(tmp / "child.kicad_sch"))
+        par = KicadSchematic("Parent")
+        par.add_lib_symbol_connector(2)
+        par.add_lib_symbol_power("GND")
+        par.place_component("Connector_Generic:Conn_01x02", "J1",
+                            "Conn_01x02", 100, 100,
+                            footprint="Connector_PinHeader_2.54mm:"
+                            "PinHeader_1x02_P2.54mm_Vertical")
+        par.label_at_pin("J1", "1", "SIG")
+        par.gnd_at_pin("J1", "2")
+        par.add_sheet("blk", "child.kicad_sch", 160, 80,
+                      ports=[("P", "input")])
+        par.label_at_sheet_pin("blk", "P", "SIG")
+        par.save(str(tmp / "parent.kicad_sch"))
+        return str(tmp / "parent.kicad_sch")
+
+    def test_child_components_in_manifest(self, board):
+        doc, summary = extract_netlist.extract(board)
+        assert "R10" in doc["components"]
+        assert summary["sheets"] == ["blk"]
+
+    def test_port_net_merged_and_roundtrip_verifies(self, board):
+        doc, _summary = extract_netlist.extract(board)
+        sig_pins = {(p["ref"], p["pin"]) for p in doc["nets"]["SIG"]["pins"]}
+        assert ("J1", "1") in sig_pins and ("R10", "1") in sig_pins
+        yaml_text = extract_netlist.emit_yaml(doc, board)
+        result = extract_netlist.self_verify(yaml_text, board)
+        assert result.passed, [i.message for i in result.errors]
+
+
 # ─── extract_bom ─────────────────────────────────────────────────────
 
 class TestExtractBom:

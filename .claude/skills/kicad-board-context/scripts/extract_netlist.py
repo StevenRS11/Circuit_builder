@@ -90,6 +90,17 @@ def _is_power_component(sch, comp) -> bool:
     return bool(lib_sym and lib_sym.is_power)
 
 
+def _walk_sheets(sch, _prefix=""):
+    """Yield (sch_node, sheet_prefix) for the root and every loaded child
+    sheet — hierarchical boards (W1b engine output, hand-drawn hierarchies)
+    extract exactly like flat ones; the shared extract_netlist has already
+    merged connectivity through the sheet pins."""
+    yield sch, _prefix
+    for sheet in getattr(sch, "sheets", []):
+        if sheet.child is not None:
+            yield from _walk_sheets(sheet.child, _prefix + sheet.name + "/")
+
+
 # ─── extraction ──────────────────────────────────────────────────────
 
 def extract(sch_path: str, project_dir=None, extra_sym=None):
@@ -103,33 +114,39 @@ def extract(sch_path: str, project_dir=None, extra_sym=None):
     sch = load_kicad_sch(sch_path, project_dir=project_dir, extra_sym=extra_sym)
     netlist = extract_netlist(sch)
 
-    power_refs = {c.reference for c in sch.components if _is_power_component(sch, c)}
+    nodes = list(_walk_sheets(sch))
 
-    # Component manifest (dedup multi-unit instances by reference).
+    power_refs = {c.reference for node, _pfx in nodes
+                  for c in node.components if _is_power_component(node, c)}
+
+    # Component manifest (dedup multi-unit instances by reference), across
+    # the whole hierarchy — refs are globally unique on a sane board (the
+    # validator's duplicate_reference check errors when they aren't).
     components = {}
     pin_names = {}  # ref -> {pin_number: pin_name}
-    for comp in sch.components:
-        if comp.reference in power_refs or comp.reference in components:
-            continue
-        lib_sym = sch.lib_symbols.get(comp.lib_id)
-        pins = []
-        names = {}
-        if lib_sym:
-            seen = set()
-            for p in lib_sym.pins:
-                if p.number in seen:
-                    continue
-                seen.add(p.number)
-                pins.append(p.number)
-                if p.name and p.name != "~":
-                    names[p.number] = p.name
-        components[comp.reference] = {
-            "part": comp.value,
-            "lib_id": comp.lib_id,
-            "footprint": comp.footprint,
-            "pins": sorted(pins, key=_pinsort),
-        }
-        pin_names[comp.reference] = names
+    for node, _pfx in nodes:
+        for comp in node.components:
+            if comp.reference in power_refs or comp.reference in components:
+                continue
+            lib_sym = node.lib_symbols.get(comp.lib_id)
+            pins = []
+            names = {}
+            if lib_sym:
+                seen = set()
+                for p in lib_sym.pins:
+                    if p.number in seen:
+                        continue
+                    seen.add(p.number)
+                    pins.append(p.number)
+                    if p.name and p.name != "~":
+                        names[p.number] = p.name
+            components[comp.reference] = {
+                "part": comp.value,
+                "lib_id": comp.lib_id,
+                "footprint": comp.footprint,
+                "pins": sorted(pins, key=_pinsort),
+            }
+            pin_names[comp.reference] = names
 
     # Nets — drop power-symbol pseudo-pins, rename unlabeled nets.
     nets = {}
@@ -155,22 +172,23 @@ def extract(sch_path: str, project_dir=None, extra_sym=None):
             "labels": [name] if (entry.has_label and not entry.is_power) else [],
         }
 
-    # No-connects — map NC markers back to (ref, pin) by position.
-    pin_positions = _extract_all_pin_positions(sch)
-    coord_to_pins = {}
-    for ref, pnum, x, y, _ptype, _pwr in pin_positions:
-        if ref in power_refs:
-            continue
-        coord_to_pins.setdefault(_coord_key(x, y), []).append((ref, pnum))
-
+    # No-connects — map NC markers back to (ref, pin) by position, per sheet
+    # (coordinates are sheet-local; two sheets legitimately reuse the same
+    # coordinates, so the maps must never be pooled across nodes).
     nc_pins = set()
     unmatched_nc = 0
-    for nc in sch.no_connects:
-        hits = coord_to_pins.get(_coord_key(nc.x, nc.y), [])
-        if hits:
-            nc_pins.update(hits)
-        else:
-            unmatched_nc += 1
+    for node, _pfx in nodes:
+        coord_to_pins = {}
+        for ref, pnum, x, y, _ptype, _pwr in _extract_all_pin_positions(node):
+            if ref in power_refs:
+                continue
+            coord_to_pins.setdefault(_coord_key(x, y), []).append((ref, pnum))
+        for nc in node.no_connects:
+            hits = coord_to_pins.get(_coord_key(nc.x, nc.y), [])
+            if hits:
+                nc_pins.update(hits)
+            else:
+                unmatched_nc += 1
 
     connected = set()
     for net in nets.values():
@@ -213,8 +231,13 @@ def extract(sch_path: str, project_dir=None, extra_sym=None):
         "no_connect_markers": len(nc_pins),
         "unmatched_nc_markers": unmatched_nc,
         "floating_pins": [f"{r}.{p}" for r, p in floating],
-        "stale_lib_cache": list(getattr(sch, "stale_lib_cache", [])),
-        "unresolved_lib_ids": list(getattr(sch, "unresolved_lib_ids", [])),
+        "stale_lib_cache": sorted({lib for node, _pfx in nodes for lib in
+                                   getattr(node, "stale_lib_cache", [])}),
+        "unresolved_lib_ids": sorted({lib for node, _pfx in nodes for lib in
+                                      getattr(node, "unresolved_lib_ids", [])}),
+        "sheets": [pfx.rstrip("/") for _node, pfx in nodes if pfx],
+        "missing_sheet_files": sorted({f for node, _pfx in nodes for f in
+                                       getattr(node, "missing_sheet_files", [])}),
     }
     return doc, summary
 

@@ -29,7 +29,7 @@ _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
     sys.path.insert(0, _script_dir)
 
-from validate_kicad_sch import KicadSchematic, load_kicad_sch
+from validate_kicad_sch import KicadSchematic, load_kicad_sch, iter_all_components
 
 
 # ─── Value normalization ──────────────────────────────────────────
@@ -199,10 +199,10 @@ def cross_check(bom_entries, sch):
     """
     issues = []
 
-    # Build schematic component lookup (excluding power symbols)
+    # Build schematic component lookup (excluding power symbols).
+    # Hierarchy-aware: components inside child sheets count (ROADMAP W1b).
     sch_components = {}
-    for comp in sch.components:
-        lib_sym = sch.lib_symbols.get(comp.lib_id)
+    for comp, lib_sym, _prefix in iter_all_components(sch):
         if lib_sym and lib_sym.is_power:
             continue
         if not comp.in_bom:

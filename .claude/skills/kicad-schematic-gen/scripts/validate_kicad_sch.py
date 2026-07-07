@@ -54,6 +54,7 @@ if _script_dir not in sys.path:
 from generate_kicad_sch import (
     KicadSchematic, Pin, LibSymbol, PlacedComponent, Wire, Label,
     GlobalLabel, HierarchicalLabel, Junction, NoConnect, snap_to_grid,
+    Sheet, SheetPin,
 )
 
 
@@ -313,7 +314,8 @@ def _resolve_missing_lib_symbols(sch, project_dir=None, extra_sym=None):
 
 
 def load_kicad_sch(filepath, resolve_from_libraries=True,
-                   project_dir=None, extra_sym=None):
+                   project_dir=None, extra_sym=None,
+                   load_children=True, _seen=None):
     """Parse a .kicad_sch file into a KicadSchematic object.
 
     This reads the S-expression file and reconstructs the in-memory
@@ -326,6 +328,13 @@ def load_kicad_sch(filepath, resolve_from_libraries=True,
     does (``resolve_from_libraries=True``), recording a `stale_lib_cache`
     warning instead of dropping the component. Pass ``project_dir`` /
     ``extra_sym`` ("[NICK=]PATH" specs) to search project/explicit libraries.
+
+    Hierarchical sheets (ROADMAP W1b): each ``(sheet)`` node is parsed into
+    ``sch.sheets``, and its child file (Sheetfile, relative to this file's
+    directory) is loaded recursively into ``Sheet.child``. A missing child
+    file leaves ``child`` None (the ``sheet_integrity`` check errors on it);
+    a sheet-file cycle raises ValueError. ``load_children=False`` restores
+    the flat, single-file parse.
     """
     with open(filepath, 'r', encoding='utf-8') as f:
         text = f.read()
@@ -446,12 +455,71 @@ def load_kicad_sch(filepath, resolve_from_libraries=True,
         nx, ny, _ = _parse_at(nc_node)
         sch.no_connects.append(NoConnect(nx, ny))
 
+    # ── Parse hierarchical sheets (and load their child files) ──
+    sch.missing_sheet_files = []
+    this_file = os.path.abspath(filepath)
+    seen = set(_seen or ()) | {this_file}
+    for sheet_node in _find_nodes(tree, 'sheet'):
+        sx, sy, _ = _parse_at(sheet_node)
+        size_node = _find_node(sheet_node, 'size')
+        sw = float(size_node[1]) if size_node and len(size_node) > 2 else 0.0
+        sh = float(size_node[2]) if size_node and len(size_node) > 2 else 0.0
+        sheet_name, sheet_file = "", ""
+        for prop in _find_nodes(sheet_node, 'property'):
+            key, val = _parse_property(prop)
+            if key in ("Sheetname", "Sheet name"):
+                sheet_name = val
+            elif key in ("Sheetfile", "Sheet file"):
+                sheet_file = val
+        pins = []
+        for pin_node in _find_nodes(sheet_node, 'pin'):
+            pname = pin_node[1] if len(pin_node) > 1 else ""
+            pshape = pin_node[2] if len(pin_node) > 2 and \
+                isinstance(pin_node[2], str) else "bidirectional"
+            px, py, prot = _parse_at(pin_node)
+            pins.append(SheetPin(name=pname, shape=pshape,
+                                 x=px, y=py, rotation=prot))
+        sheet = Sheet(name=sheet_name, filename=sheet_file,
+                      x=sx, y=sy, width=sw, height=sh, pins=pins,
+                      uuid=_get_atom(sheet_node, 'uuid', ''))
+        if load_children and sheet_file:
+            child_path = os.path.normpath(
+                os.path.join(os.path.dirname(this_file), sheet_file))
+            if os.path.abspath(child_path) in seen:
+                raise ValueError(
+                    f"sheet-file cycle: '{sheet_file}' (from {filepath}) "
+                    f"recurses into an ancestor sheet")
+            if os.path.isfile(child_path):
+                sheet.child = load_kicad_sch(
+                    child_path, resolve_from_libraries=resolve_from_libraries,
+                    project_dir=project_dir, extra_sym=extra_sym,
+                    load_children=True, _seen=seen)
+            else:
+                sch.missing_sheet_files.append(sheet_file)
+        sch.sheets.append(sheet)
+
     # ── Library fallback for lib_ids missing from the embedded cache ──
     if resolve_from_libraries:
         _resolve_missing_lib_symbols(sch, project_dir=project_dir,
                                      extra_sym=extra_sym)
 
     return sch
+
+
+def iter_all_components(sch, _prefix=""):
+    """Yield (component, lib_symbol, sheet_prefix) across the hierarchy.
+
+    ``sheet_prefix`` is "" for the root and "instance/" (nested:
+    "a/b/") for components inside hierarchical sheets. The shared iteration
+    for every consumer that reasons about components regardless of which
+    sheet they live on (verify_netlist, cross_check_bom, BOM extraction).
+    """
+    for comp in sch.components:
+        yield comp, sch.lib_symbols.get(comp.lib_id), _prefix
+    for sheet in getattr(sch, 'sheets', []):
+        if sheet.child is not None:
+            yield from iter_all_components(sheet.child,
+                                           _prefix + sheet.name + "/")
 
 
 # ─── Coordinate key helper ──────────────────────────────────────────
@@ -515,6 +583,10 @@ class NetlistEntry:
     pins: set  # set of (reference, pin_number)
     has_label: bool = False
     is_power: bool = False
+    # Hierarchy bookkeeping (ROADMAP W1b):
+    hlabel_names: set = field(default_factory=set)  # hierarchical labels on this net
+    global_names: set = field(default_factory=set)  # global labels on this net
+    from_sheet: bool = False   # net merged in from a child sheet (not root geometry)
 
 
 @dataclass
@@ -666,6 +738,22 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
                 uf.union(hl_key, _coord_key(w.x1, w.y1))
                 break
 
+    # 2d. Sheet pins connect wires at their position (the parent-side end
+    #     of the hierarchy — the child side is merged in step 7).
+    sheet_pin_key = {}    # (sheet_index, pin_name) -> coord key
+    sheet_pin_coords = set()
+    for si, sheet in enumerate(getattr(sch, 'sheets', [])):
+        for spin in sheet.pins:
+            key = _coord_key(spin.x, spin.y)
+            uf._ensure(key)
+            sheet_pin_key[(si, spin.name)] = key
+            sheet_pin_coords.add(key)
+            for w in sch.wires:
+                if _is_point_on_segment_inclusive(spin.x, spin.y,
+                                                  w.x1, w.y1, w.x2, w.y2):
+                    uf.union(key, _coord_key(w.x1, w.y1))
+                    break
+
     # 3. Register label positions
     for lbl in sch.labels:
         key = _coord_key(lbl.x, lbl.y)
@@ -697,17 +785,21 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
 
     # 5. Merge sets that share label names
     label_groups = {}  # label_text -> list of coord keys
+    global_texts = {}  # global-label text -> coord keys (globals span sheets)
+    hlabel_texts = {}  # hierarchical-label text -> coord keys (sheet ports)
     for lbl in sch.labels:
         key = _coord_key(lbl.x, lbl.y)
         label_groups.setdefault(lbl.text, []).append(key)
     for gl in sch.global_labels:
         key = _coord_key(gl.x, gl.y)
         label_groups.setdefault(gl.text, []).append(key)
+        global_texts.setdefault(gl.text, []).append(key)
     # Hierarchical labels name/unify nets within this sheet exactly like
     # labels do (cross-sheet connection happens via the parent's sheet pins).
     for hl in getattr(sch, 'hierarchical_labels', []):
         key = _coord_key(hl.x, hl.y)
         label_groups.setdefault(hl.text, []).append(key)
+        hlabel_texts.setdefault(hl.text, []).append(key)
 
     # Power symbols act like global labels
     for comp in sch.components:
@@ -759,9 +851,11 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
     used_names = set(root_to_name.values())
     for root in groups:
         if root not in root_to_name:
-            # Only name it if it has pins
+            # Only name it if it has pins (a sheet pin counts — a wire joining
+            # two sheet pins is a real net even with no component pin on it)
             group_coords = groups[root]
-            has_pins = any(c in coord_to_pins for c in group_coords)
+            has_pins = any(c in coord_to_pins for c in group_coords) or \
+                any(c in sheet_pin_coords for c in group_coords)
             if has_pins:
                 auto_idx += 1
                 name = f"_NET_{auto_idx}"
@@ -789,26 +883,123 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
             is_power=root_is_power.get(root, False),
         )
 
+    # Record which hierarchical/global label texts sit on each net — the
+    # hierarchy merge below (and the one a parent runs on THIS sheet's
+    # netlist) keys off these.
+    for texts, attr in ((hlabel_texts, "hlabel_names"),
+                        (global_texts, "global_names")):
+        for text, keys in texts.items():
+            for key in keys:
+                name = root_to_name.get(uf.find(key))
+                if name and name in netlist.nets:
+                    getattr(netlist.nets[name], attr).add(text)
+
+    # 7. Merge child-sheet netlists through the sheet pins (ROADMAP W1b).
+    _merge_sheet_netlists(sch, netlist, uf, root_to_name, sheet_pin_key)
+
     return netlist
+
+
+def _merge_sheet_netlists(sch, netlist, uf, root_to_name, sheet_pin_key):
+    """Fold each child sheet's netlist into the parent's.
+
+    KiCad hierarchy semantics: a child net carrying a hierarchical label
+    joins the parent net wired to the sheet pin of the same name; power
+    symbols and global labels are global across the hierarchy (merge by
+    name); everything else is sheet-local and gets an ``instance/`` prefix.
+    """
+    merged_into = {}   # parent net name -> the name it was folded into
+
+    def _resolve(name):
+        while name in merged_into:
+            name = merged_into[name]
+        return name
+
+    def _net_for_global(gname):
+        """The net carrying global label ``gname`` (its primary name may
+        differ), else ``gname`` itself (a fresh net will be created)."""
+        for name, entry in netlist.nets.items():
+            if gname in entry.global_names or name == gname:
+                return name
+        return gname
+
+    for si, sheet in enumerate(getattr(sch, 'sheets', [])):
+        if sheet.child is None:
+            continue
+        child_nl = extract_netlist(sheet.child)  # grandchildren already merged
+
+        # Parent net wired to each sheet pin (None = pin floats in parent).
+        port_net = {}
+        for spin in sheet.pins:
+            key = sheet_pin_key.get((si, spin.name))
+            if key is None:
+                continue
+            pname = root_to_name.get(uf.find(key))
+            if pname:
+                port_net[spin.name] = pname
+
+        for cname, centry in child_nl.nets.items():
+            if centry.is_power:
+                target = cname
+            elif centry.global_names:
+                target = _resolve(_net_for_global(sorted(centry.global_names)[0]))
+            else:
+                parents = sorted({_resolve(port_net[h])
+                                  for h in centry.hlabel_names
+                                  if h in port_net})
+                if parents:
+                    target = parents[0]
+                    # One child net touching several parent nets CONNECTS
+                    # them (e.g. a block internally ties two ports).
+                    for other in parents[1:]:
+                        if other == target or other not in netlist.nets:
+                            continue
+                        tgt = netlist.nets[target]
+                        oth = netlist.nets.pop(other)
+                        tgt.pins |= oth.pins
+                        tgt.has_label = tgt.has_label or oth.has_label
+                        tgt.is_power = tgt.is_power or oth.is_power
+                        tgt.hlabel_names |= oth.hlabel_names
+                        tgt.global_names |= oth.global_names
+                        merged_into[other] = target
+                else:
+                    # Sheet-local net (or a port left unwired in the parent).
+                    target = f"{sheet.name}/{cname}"
+            entry = netlist.nets.get(target)
+            if entry is None:
+                entry = NetlistEntry(
+                    name=target, pins=set(), has_label=True,
+                    is_power=centry.is_power, from_sheet=True)
+                netlist.nets[target] = entry
+            entry.pins |= centry.pins
+            entry.is_power = entry.is_power or centry.is_power
+            entry.global_names |= centry.global_names
 
 
 # ─── Validation checks ──────────────────────────────────────────────
 
 def _check_duplicate_references(sch):
+    """Duplicate refs across the WHOLE hierarchy — two sheets each carrying a
+    'U2' is exactly the collision the per-instance refdes ranges exist to
+    prevent, and it must be caught at the root."""
     issues = []
     seen = {}
-    for comp in sch.components:
-        lib_sym = sch.lib_symbols.get(comp.lib_id)
+    for comp, lib_sym, prefix in iter_all_components(sch):
         if lib_sym and lib_sym.is_power:
             continue  # Power refs like #PWR001 are allowed to overlap in name prefix
+        if comp.reference.startswith("#"):
+            continue  # power-symbol refs are per-sheet by design
+        where = prefix.rstrip("/") if prefix else "root"
         if comp.reference in seen:
             issues.append(ValidationIssue(
                 "error", "duplicate_reference",
-                f"Duplicate reference designator '{comp.reference}'",
+                f"Duplicate reference designator '{comp.reference}' "
+                f"(in {seen[comp.reference]} and {where})",
                 references=[comp.reference],
                 coordinates=(comp.x, comp.y),
             ))
-        seen[comp.reference] = comp
+        else:
+            seen[comp.reference] = where
     return issues
 
 
@@ -906,16 +1097,29 @@ def _check_floating_pins(sch, netlist):
     return issues
 
 
-def _check_single_pin_nets(netlist):
+def _check_single_pin_nets(sch, netlist):
     """Nets with only one pin — usually a broken connection."""
     issues = []
+    nc_coords = {_coord_key(nc.x, nc.y) for nc in sch.no_connects}
+
+    def _is_nc(ref, pnum):
+        try:
+            x, y = sch.get_pin_position(ref, pnum)
+        except ValueError:
+            return False
+        return _coord_key(x, y) in nc_coords
+
     for name, entry in netlist.nets.items():
+        if entry.from_sheet:
+            continue  # child-sheet nets are checked by the child's own validate()
         # Filter out power symbol-only pins
         real_pins = {(r, p) for r, p in entry.pins if not r.startswith("#PWR")}
         pwr_pins = {(r, p) for r, p in entry.pins if r.startswith("#PWR")}
 
         if len(real_pins) == 1 and not entry.has_label:
             ref, pnum = next(iter(real_pins))
+            if _is_nc(ref, pnum):
+                continue  # an explicitly NC'd pin is not a broken net
             issues.append(ValidationIssue(
                 "warning", "single_pin_net",
                 f"Net '{name}' has only one non-power pin: {ref}.{pnum}",
@@ -951,6 +1155,11 @@ def _check_dangling_wires(sch):
         occupied.add(_coord_key(gl.x, gl.y))
     for hl in getattr(sch, 'hierarchical_labels', []):
         occupied.add(_coord_key(hl.x, hl.y))
+
+    # Sheet pins are connection points too
+    for sheet in getattr(sch, 'sheets', []):
+        for spin in sheet.pins:
+            occupied.add(_coord_key(spin.x, spin.y))
 
     # Junction positions
     for j in sch.junctions:
@@ -1091,6 +1300,9 @@ def _check_disconnected_labels(sch):
     pin_positions = _extract_all_pin_positions(sch)
     for ref, pnum, x, y, ptype, is_pwr in pin_positions:
         touchable.add(_coord_key(x, y))
+    for sheet in getattr(sch, 'sheets', []):
+        for spin in sheet.pins:
+            touchable.add(_coord_key(spin.x, spin.y))
 
     def _label_touches_something(lx, ly):
         key = _coord_key(lx, ly)
@@ -1118,6 +1330,89 @@ def _check_disconnected_labels(sch):
                 f"any wire or pin",
                 coordinates=_coord_key(gl.x, gl.y),
             ))
+    return issues
+
+
+def _check_sheet_integrity(sch):
+    """Hierarchical-sheet contract checks (ROADMAP W1b).
+
+    Errors: duplicate sheet instance names, duplicate pin names on one
+    sheet, a Sheetfile that doesn't exist, and pin↔hierarchical-label parity
+    with the loaded child (a pin with no matching child port connects
+    nothing; a child port with no pin is an interface the parent ignores).
+    Warning: a sheet pin left unwired in the parent.
+    """
+    issues = []
+    missing_files = set(getattr(sch, 'missing_sheet_files', []))
+
+    # Connection points a sheet pin can legitimately touch
+    label_coords = set()
+    for lbl in sch.labels:
+        label_coords.add(_coord_key(lbl.x, lbl.y))
+    for gl in sch.global_labels:
+        label_coords.add(_coord_key(gl.x, gl.y))
+
+    seen_names = {}
+    for sheet in getattr(sch, 'sheets', []):
+        if sheet.name in seen_names:
+            issues.append(ValidationIssue(
+                "error", "sheet_integrity",
+                f"Duplicate sheet instance name '{sheet.name}' — instance "
+                f"names must be unique (they scope refs and net names)",
+                coordinates=(sheet.x, sheet.y),
+            ))
+        seen_names[sheet.name] = sheet
+
+        pin_names = [p.name for p in sheet.pins]
+        for dup in sorted({n for n in pin_names if pin_names.count(n) > 1}):
+            issues.append(ValidationIssue(
+                "error", "sheet_integrity",
+                f"Sheet '{sheet.name}': duplicate sheet pin '{dup}'",
+                coordinates=(sheet.x, sheet.y),
+            ))
+
+        if sheet.child is None:
+            if sheet.filename in missing_files:
+                issues.append(ValidationIssue(
+                    "error", "sheet_integrity",
+                    f"Sheet '{sheet.name}': child file '{sheet.filename}' "
+                    f"not found next to the parent schematic",
+                    coordinates=(sheet.x, sheet.y),
+                ))
+            continue
+
+        # Pin set ↔ child hierarchical-label parity
+        hlabels = {hl.text for hl in sheet.child.hierarchical_labels}
+        for pname in sorted(set(pin_names) - hlabels):
+            issues.append(ValidationIssue(
+                "error", "sheet_integrity",
+                f"Sheet '{sheet.name}': pin '{pname}' has no matching "
+                f"hierarchical label in '{sheet.filename}' — it connects "
+                f"nothing",
+                coordinates=(sheet.x, sheet.y),
+            ))
+        for hname in sorted(hlabels - set(pin_names)):
+            issues.append(ValidationIssue(
+                "error", "sheet_integrity",
+                f"Sheet '{sheet.name}': child '{sheet.filename}' declares "
+                f"port '{hname}' but the sheet symbol has no such pin",
+                coordinates=(sheet.x, sheet.y),
+            ))
+
+        # Unwired sheet pins (parent side)
+        for spin in sheet.pins:
+            key = _coord_key(spin.x, spin.y)
+            wired = key in label_coords or any(
+                _is_point_on_segment_inclusive(spin.x, spin.y,
+                                               w.x1, w.y1, w.x2, w.y2)
+                for w in sch.wires)
+            if not wired:
+                issues.append(ValidationIssue(
+                    "warning", "sheet_integrity",
+                    f"Sheet '{sheet.name}': pin '{spin.name}' is not wired "
+                    f"to anything in the parent",
+                    coordinates=(spin.x, spin.y),
+                ))
     return issues
 
 
@@ -1169,6 +1464,7 @@ ALL_CHECKS = [
     "missing_power_source",
     "disconnected_label",
     "similar_net_names",
+    "sheet_integrity",
 ]
 
 def validate(sch: KicadSchematic,
@@ -1192,7 +1488,7 @@ def validate(sch: KicadSchematic,
         "missing_lib_symbol": lambda: _check_missing_lib_symbols(sch),
         "stale_lib_cache": lambda: _check_stale_lib_cache(sch),
         "floating_pin": lambda: _check_floating_pins(sch, netlist),
-        "single_pin_net": lambda: _check_single_pin_nets(netlist),
+        "single_pin_net": lambda: _check_single_pin_nets(sch, netlist),
         "dangling_wire": lambda: _check_dangling_wires(sch),
         "missing_junction": lambda: _check_missing_junctions(sch),
         "overlapping_components": lambda: _check_overlapping_components(sch),
@@ -1200,6 +1496,7 @@ def validate(sch: KicadSchematic,
         "missing_power_source": lambda: _check_missing_power_connections(sch, netlist),
         "disconnected_label": lambda: _check_disconnected_labels(sch),
         "similar_net_names": lambda: _check_similar_net_names(sch),
+        "sheet_integrity": lambda: _check_sheet_integrity(sch),
     }
 
     severity_levels = {"warning": 0, "error": 1}
@@ -1212,6 +1509,23 @@ def validate(sch: KicadSchematic,
             for issue in issues:
                 if severity_levels.get(issue.severity, 0) >= threshold:
                     all_issues.append(issue)
+
+    # Recurse into loaded child sheets, prefixing their issues with the
+    # instance name. duplicate_reference is skipped in children — the root
+    # call already checks it across the whole hierarchy.
+    child_checks = [c for c in checks if c != "duplicate_reference"]
+    for sheet in getattr(sch, 'sheets', []):
+        if sheet.child is None:
+            continue
+        child_result = validate(sheet.child, checks=child_checks,
+                                severity_threshold=severity_threshold)
+        for issue in child_result.issues:
+            all_issues.append(ValidationIssue(
+                issue.severity, issue.check_name,
+                f"[sheet {sheet.name}] {issue.message}",
+                references=issue.references,
+                coordinates=issue.coordinates,
+            ))
 
     has_errors = any(i.severity == "error" for i in all_issues)
     return ValidationResult(

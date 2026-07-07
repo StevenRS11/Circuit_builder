@@ -293,9 +293,13 @@ covers it (e.g. a load-cell front-end). A block's parts arrive with bench
 provenance (`validated_boards.yaml`), a verified port contract, and a
 self-contained sheet — stronger evidence than any datasheet citation. Still
 re-confirm *sourceability* per the rubric (stock goes stale even when designs
-don't). Until the engine composes sheets automatically (roadmap W1b), a block
-is placed manually in KiCad (place sheet → Import Sheet Pins) or its BOM/
-netlist fragments are folded into the stage documents.
+don't). The Stage 6 engine composes blocks automatically (W1b): declare each
+instance in the layout YAML `blocks:` section and keep the block's parts OUT
+of the board netlist/BOM/placements — the bundle owns them, and the engine
+emits the merged whole-board `{out}_bom_flat.md` for Stage 9. Honor the
+block's `constraints:` (judgment the engine doesn't script — e.g. fixed I2C
+addresses). Manual KiCad placement (place sheet → Import Sheet Pins) remains
+available for hand-drawn boards.
 
 **What Claude does (per role):**
 1. For each functional role in the spec (regulators, ICs, sensors, connectors), identify **2-3 candidate parts**
@@ -665,6 +669,17 @@ and placement + IC pin-side arrangement in the layout YAML. Nothing is retyped.
    d. **Author `placements:`** — a grid by functional block (ICs on a band, passives banded
       below, connectors at edges). Rotate multi-pin connectors so their stubs don't collide
       (the J3 balance-header → `rotation: 270` lesson in the reference).
+
+   e. **Compose proven blocks with `blocks:` (W1b).** If Stage 2 selected a registry
+      block, declare each instance here instead of authoring its parts:
+      `{instance: {block, x, y, port_map: {port → board_net}}}` (schema + rules in
+      `templates/06_layout.yaml`; contract + constraints in `blocks/{name}/block.yaml`).
+      The block's components stay OUT of the netlist/BOM/placements — the engine clones
+      the validated child sheet (per-instance refdes range, U2→U102/U202), wires the sheet
+      pins to the mapped nets, self-verifies the flattened hierarchy, and emits the merged
+      `{out}_bom_flat.md` **which becomes the BOM Stage 9 checks and uploads**. Every rail
+      in the block contract must be in `power_nets`; honor `constraints:` yourself (e.g.
+      one NAU7802 per I2C bus — its address is fixed in silicon).
 
 2. **Pre-build gate — check the layout/BOM against the fact cards** (`check_cards.py`).
    This catches intrinsic-fact drift (a `symbols:` pin name/type or a BOM footprint that

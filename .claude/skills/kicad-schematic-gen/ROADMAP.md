@@ -12,7 +12,26 @@ unblock everything; the validation loop (W2) comes before the block library
 because it *produces* the blocks; W3 (layout verify) is deliberately last and
 designed after the block schema exists.
 
-Status: **A1 DONE, A2 DONE, W2 infrastructure DONE, W1a DONE (2026-07-06).**
+Status: **A1 DONE, A2 DONE, W2 infrastructure DONE, W1a DONE (2026-07-06),
+W1b DONE (2026-07-07).** W1b shipped: layout YAML `blocks:` section
+(`{instance: {block, x, y, port_map, refdes_base?}}` + optional `blocks_dir:`),
+engine composition in `generate_from_data.py` (loads the registry bundle,
+clones `sheet.kicad_sch` per instance with refs re-annotated into per-instance
+ranges — U2→U102/U202 — and a fresh root uuid, emits the root `(sheet)` symbol
+with pins from the block contract, wires each pin to its mapped board net,
+self-verifies against the FLATTENED intended netlist + merged BOM, emits a
+whole-board `{out}_bom_flat.md` for Stage 9, and removes clones on a failed
+build), hierarchical loader (`load_kicad_sch` walks `(sheet)`→child files with
+cycle detection; `extract_netlist` merges child netlists through sheet pins —
+port nets join the parent net, power/global names merge globally, sheet-local
+nets get `instance/` prefixes), validator recursion + the `sheet_integrity`
+check (13th: pin↔hlabel parity, missing child file, duplicate sheet names,
+unwired-pin warning) + hierarchy-wide duplicate-ref check, hierarchy-aware
+`verify_netlist`/`cross_check_bom`/board-context `extract_netlist` (the
+reviewer's flat-only limitation is GONE), and an NC'd-pin single_pin_net
+false-positive fix. New gates: port_map↔contract parity, mapped-net declared,
+rail-availability, refdes-range collision. 25 new tests (606 repo-wide);
+byte-deterministic under `--uuid-seed` including clones.
 W1a shipped: `HierarchicalLabel` support through the whole stack (builder
 `hlabel_at_pin`/`add_hierarchical_label`, save-emission, loader parse, netlist
 extraction, dangling-wire check), `blocks/` registry + `CircuitBlocks.pretty`
@@ -182,7 +201,7 @@ every component in BOM, facts present, dependencies manifest satisfied).
 **Seed blocks: NAU7802 front-end (DualScale) and the S3 board's inverter
 blocks** — extracted, not hand-invented, so provenance is real.
 
-### W1b: Engine + loader go hierarchical
+### W1b: Engine + loader go hierarchical — DONE 2026-07-07
 
 - Layout YAML gains `blocks:` — `{instance_name, block_id, x/y, port_map:
   {port → board_net}}`.

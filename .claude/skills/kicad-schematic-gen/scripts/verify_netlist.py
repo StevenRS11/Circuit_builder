@@ -44,6 +44,7 @@ if _script_dir not in sys.path:
 
 from validate_kicad_sch import (
     KicadSchematic, extract_netlist, load_kicad_sch, Netlist,
+    iter_all_components,
 )
 
 try:
@@ -207,10 +208,10 @@ def verify(intended: IntendedNetlist, sch: KicadSchematic) -> VerificationResult
     # Extract actual netlist from schematic
     actual = extract_netlist(sch)
 
-    # Build lookup: (ref, pin) -> set of actual schematic component refs
+    # Build lookup: (ref, pin) -> set of actual schematic component refs.
+    # Hierarchy-aware: components inside child sheets count (ROADMAP W1b).
     sch_component_pins = set()
-    for comp in sch.components:
-        lib_sym = sch.lib_symbols.get(comp.lib_id)
+    for comp, lib_sym, _prefix in iter_all_components(sch):
         if lib_sym and lib_sym.is_power:
             continue  # skip power symbols
         if lib_sym:
@@ -283,10 +284,9 @@ def verify(intended: IntendedNetlist, sch: KicadSchematic) -> VerificationResult
                 references=[nc.ref],
             ))
 
-    # Check declared components exist in schematic
+    # Check declared components exist in schematic (across the hierarchy)
     sch_refs = set()
-    for comp in sch.components:
-        lib_sym = sch.lib_symbols.get(comp.lib_id)
+    for comp, lib_sym, _prefix in iter_all_components(sch):
         if lib_sym and lib_sym.is_power:
             continue
         sch_refs.add(comp.reference)

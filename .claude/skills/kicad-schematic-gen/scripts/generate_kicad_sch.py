@@ -151,6 +151,36 @@ class NoConnect:
     y: float
 
 
+@dataclass
+class SheetPin:
+    """A pin on a hierarchical sheet symbol — the parent-side end of a child
+    sheet's hierarchical label of the same name."""
+    name: str
+    shape: str = "bidirectional"  # input | output | bidirectional | tri_state | passive
+    x: float = 0.0                # absolute schematic coordinates (on the sheet border)
+    y: float = 0.0
+    rotation: float = 0           # 180 = left edge, 0 = right edge
+
+
+@dataclass
+class Sheet:
+    """A hierarchical sheet symbol placed on a parent schematic (ROADMAP W1b).
+
+    ``name`` is the instance name (Sheetname property), ``filename`` the child
+    .kicad_sch (Sheetfile property, relative to the parent's directory). The
+    loader populates ``child`` with the parsed child KicadSchematic; builder-
+    created sheets leave it None until attached."""
+    name: str
+    filename: str
+    x: float
+    y: float
+    width: float
+    height: float
+    pins: list = field(default_factory=list)   # list of SheetPin
+    uuid: str = ""
+    child: object = None                       # loader: child KicadSchematic
+
+
 class KicadSchematic:
     """Builder for .kicad_sch files."""
     
@@ -169,6 +199,7 @@ class KicadSchematic:
         self.hierarchical_labels: list[HierarchicalLabel] = []
         self.junctions: list[Junction] = []
         self.no_connects: list[NoConnect] = []
+        self.sheets: list[Sheet] = []
         self._pwr_counter = 0
         self._ref_counters: dict[str, int] = {}   # prefix -> highest assigned number
         self._occupied_rects: list[tuple[float, float, float, float]] = []  # (x_min, y_min, x_max, y_max)
@@ -2016,6 +2047,86 @@ class KicadSchematic:
         x, y = self.get_pin_position(reference, pin)
         self.add_no_connect(x, y)
 
+    # ─── Hierarchical sheets (block composition, ROADMAP W1b) ─────────
+
+    def add_sheet(self, name, filename, x, y, ports, width=25.4):
+        """Place a hierarchical sheet symbol referencing a child .kicad_sch.
+
+        Args:
+            name: instance name (Sheetname) — must be unique on this schematic.
+            filename: the child file (Sheetfile), relative to the parent's dir.
+            x, y: top-left corner (snapped to grid).
+            ports: ordered list of (port_name, shape) — one sheet pin each,
+                   stacked down the LEFT edge (shape: input | output |
+                   bidirectional | tri_state | passive). Must mirror the child
+                   sheet's hierarchical labels exactly.
+            width: sheet body width in mm.
+
+        Returns the Sheet. Wire the pins with label_at_sheet_pin() /
+        power_at_sheet_pin() — connectivity, as everywhere else, is by name.
+        """
+        if any(s.name == name for s in self.sheets):
+            raise ValueError(f"Sheet instance name '{name}' already placed")
+        seen = set()
+        for pname, _shape in ports:
+            if pname in seen:
+                raise ValueError(f"Sheet '{name}': duplicate port '{pname}'")
+            seen.add(pname)
+        sx, sy = snap_to_grid(x), snap_to_grid(y)
+        w = snap_to_grid(width)
+        h = snap_to_grid(max(2.54 * (len(ports) + 1), 12.7))
+        pins = []
+        for i, (pname, shape) in enumerate(ports):
+            pins.append(SheetPin(
+                name=pname, shape=shape,
+                x=sx, y=snap_to_grid(sy + 2.54 * (i + 1)),
+                rotation=180,  # left edge
+            ))
+        sheet = Sheet(name=name, filename=filename, x=sx, y=sy,
+                      width=w, height=h, pins=pins, uuid=_uuid())
+        self.sheets.append(sheet)
+        # The body is occupied space for label collision avoidance.
+        self._register_rect((sx, sy, sx + w, sy + h))
+        return sheet
+
+    def _find_sheet_pin(self, sheet_name, pin_name):
+        for sheet in self.sheets:
+            if sheet.name == sheet_name:
+                for pin in sheet.pins:
+                    if pin.name == pin_name:
+                        return sheet, pin
+                raise ValueError(f"Sheet '{sheet_name}' has no pin '{pin_name}'")
+        raise ValueError(f"Sheet '{sheet_name}' not found")
+
+    def get_sheet_pin_position(self, sheet_name, pin_name):
+        """Absolute (x, y) of a sheet pin on the sheet border."""
+        _sheet, pin = self._find_sheet_pin(sheet_name, pin_name)
+        return pin.x, pin.y
+
+    def label_at_sheet_pin(self, sheet_name, pin_name, net_name, length=5.08):
+        """Net label connected to a sheet pin via a wire stub (leftward —
+        pins sit on the sheet's left edge). The sheet-pin counterpart of
+        label_at_pin: matching the netlist name makes the connection."""
+        x, y = self.get_sheet_pin_position(sheet_name, pin_name)
+        end_x = snap_to_grid(x - length)
+        self.add_wire(x, y, end_x, y)
+        self.add_label(net_name, end_x, y, rotation=180)
+
+    def power_at_sheet_pin(self, sheet_name, pin_name, power_name,
+                           wire_len=5.08):
+        """Power symbol (GND down, rails up) connected to a sheet pin via a
+        leftward stub — for the rare port that maps onto a power net."""
+        x, y = self.get_sheet_pin_position(sheet_name, pin_name)
+        stub = snap_to_grid(2.54)
+        mid_x = snap_to_grid(x - stub)
+        self.add_wire(x, y, mid_x, y)
+        if power_name == "GND":
+            self.add_wire(mid_x, y, mid_x, y + wire_len)
+            self.place_power_symbol("GND", mid_x, y + wire_len)
+        else:
+            self.add_wire(mid_x, y, mid_x, y - wire_len)
+            self.place_power_symbol(power_name, mid_x, y - wire_len)
+
     # ─── Pre-save audits ──────────────────────────────────────────────
 
     def ensure_all_pins_assigned(self):
@@ -3152,6 +3263,39 @@ class KicadSchematic:
         
         return '\n'.join(lines)
     
+    def _render_sheet(self, sheet: Sheet, page=2) -> str:
+        """Render a hierarchical sheet symbol with its pins."""
+        lines = []
+        lines.append(f'  (sheet')
+        lines.append(f'    (at {fmt(sheet.x)} {fmt(sheet.y)})')
+        lines.append(f'    (size {fmt(sheet.width)} {fmt(sheet.height)})')
+        lines.append(f'    (stroke (width 0.1524) (type solid))')
+        lines.append(f'    (fill (color 0 0 0 0.0000))')
+        lines.append(f'    (uuid "{sheet.uuid}")')
+        lines.append(f'    (property "Sheetname" "{sheet.name}"')
+        lines.append(f'      (at {fmt(sheet.x)} {fmt(sheet.y - 0.7)} 0)')
+        lines.append(f'      (effects (font (size 1.27 1.27)) (justify left bottom))')
+        lines.append(f'    )')
+        lines.append(f'    (property "Sheetfile" "{sheet.filename}"')
+        lines.append(f'      (at {fmt(sheet.x)} {fmt(sheet.y + sheet.height + 0.7)} 0)')
+        lines.append(f'      (effects (font (size 1.27 1.27)) (justify left top) hide)')
+        lines.append(f'    )')
+        for pin in sheet.pins:
+            lines.append(f'    (pin "{pin.name}" {pin.shape}')
+            lines.append(f'      (at {fmt(pin.x)} {fmt(pin.y)} {fmt(pin.rotation)})')
+            lines.append(f'      (effects (font (size 1.27 1.27)) (justify right))')
+            lines.append(f'      (uuid "{_uuid()}")')
+            lines.append(f'    )')
+        lines.append(f'    (instances')
+        lines.append(f'      (project ""')
+        lines.append(f'        (path "/{self.root_uuid}"')
+        lines.append(f'          (page "{page}")')
+        lines.append(f'        )')
+        lines.append(f'      )')
+        lines.append(f'    )')
+        lines.append(f'  )')
+        return '\n'.join(lines)
+
     def save(self, filepath):
         """Write the complete .kicad_sch file."""
         # Pre-compute label positions with collision avoidance
@@ -3231,14 +3375,19 @@ class KicadSchematic:
             lines.append(f'    (effects (font (size 1.27 1.27)))')
             lines.append(f'    (uuid "{_uuid()}")')
             lines.append(f'  )')
-        
+
         lines.append(f'')
-        
+
         # Placed components
         for comp in self.components:
             lines.append(self._render_placed_component(comp))
             lines.append(f'')
-        
+
+        # Hierarchical sheet symbols (block instances — ROADMAP W1b)
+        for i, sheet in enumerate(self.sheets):
+            lines.append(self._render_sheet(sheet, page=i + 2))
+            lines.append(f'')
+
         # Sheet instances (required)
         lines.append(f'  (sheet_instances')
         lines.append(f'    (path "/{self.root_uuid}/"')

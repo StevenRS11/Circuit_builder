@@ -19,11 +19,13 @@ CLI:
 """
 
 import argparse
+import copy
 import json
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+import tempfile
+from dataclasses import dataclass, field, replace as dc_replace
 from pathlib import Path
 
 # Make sibling skill modules importable whether run as a script or imported.
@@ -31,17 +33,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import yaml
 
-from generate_kicad_sch import KicadSchematic
+from generate_kicad_sch import KicadSchematic, _uuid
 from verify_netlist import (
-    IntendedNetlist, load_intended_netlist, load_intended_netlist_from_string,
+    IntendedNetlist, IntendedComponent, IntendedNet, IntendedNoConnect,
+    IntendedPin,
+    load_intended_netlist, load_intended_netlist_from_string,
     verify,
 )
 from cross_check_bom import load_bom_from_markdown, cross_check
-from validate_kicad_sch import validate
+from validate_kicad_sch import validate, load_kicad_sch
 from check_pcbway import (
     CANONICAL_MPN_FIELD, CANONICAL_PACKAGE_FIELD,
     looks_like_distributor_code, looks_like_description,
 )
+
+# The proven-block registry (ROADMAP W1). Layout YAML `blocks_dir:` overrides.
+DEFAULT_BLOCKS_DIR = str(Path(__file__).resolve().parent.parent / "blocks")
 
 
 # Placeholder tokens that mean "no value" in a BOM cell.
@@ -128,6 +135,29 @@ class SymbolDef:
 
 
 @dataclass
+class BlockInstance:
+    """One placed instance of a proven block (layout YAML ``blocks:``)."""
+    name: str                 # instance name (Sheetname; scopes nets + clone file)
+    block_id: str             # directory under the blocks/ registry
+    x: float = 0.0
+    y: float = 0.0
+    port_map: dict = field(default_factory=dict)   # port name -> board net
+    refdes_base: int = 0      # 0 = auto ((sorted-index + 1) * 100)
+
+
+@dataclass
+class BlockBundle:
+    """A loaded blocks/{id}/ bundle (sheet + contract + netlist + BOM)."""
+    block_id: str
+    dir: str
+    sheet_text: str = ""
+    ports: list = field(default_factory=list)       # [(name, shape)] in contract order
+    rails: list = field(default_factory=list)       # rail net names
+    netlist: object = None                          # IntendedNetlist fragment
+    bom_entries: list = field(default_factory=list) # BomEntry subset
+
+
+@dataclass
 class Layout:
     project: str = ""
     title: str = "Untitled"
@@ -135,6 +165,8 @@ class Layout:
     power_nets: list = field(default_factory=list)
     placements: dict = field(default_factory=dict)  # ref -> Placement
     symbols: dict = field(default_factory=dict)      # lib_id -> SymbolDef
+    blocks: dict = field(default_factory=dict)       # instance name -> BlockInstance
+    blocks_dir: str = ""                             # override for the registry dir
 
 
 @dataclass
@@ -144,6 +176,7 @@ class GenerateResult:
     warnings: list = field(default_factory=list)
     sch: object = None
     output_path: str = None
+    artifacts: list = field(default_factory=list)  # extra files written (clones, flat BOM)
 
 
 class EngineError(Exception):
@@ -179,6 +212,21 @@ def _parse_layout(raw: dict) -> Layout:
             width=float(sym.get("width", 10.16)),
             from_library=bool(sym.get("from_library", False)),
             block=sym.get("block", "") or "",
+        )
+    lay.blocks_dir = str(raw.get("blocks_dir", "") or "")
+    for inst_name, bl in (raw.get("blocks", {}) or {}).items():
+        if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", str(inst_name)):
+            raise EngineError([
+                f"block instance '{inst_name}': name must be an identifier "
+                f"(letters/digits/underscore) — it becomes the sheet name and "
+                f"the clone filename"])
+        if "block" not in bl or "x" not in bl or "y" not in bl:
+            raise EngineError([f"block instance {inst_name}: requires block, x, y"])
+        lay.blocks[inst_name] = BlockInstance(
+            name=inst_name, block_id=str(bl["block"]),
+            x=float(bl["x"]), y=float(bl["y"]),
+            port_map={str(k): str(v) for k, v in (bl.get("port_map") or {}).items()},
+            refdes_base=int(bl.get("refdes_base", 0)),
         )
     return lay
 
@@ -282,6 +330,259 @@ def _preflight(netlist: IntendedNetlist, bom_by_ref: dict, layout: Layout) -> li
     return errors
 
 
+# ─── Proven-block composition (ROADMAP W1b) ──────────────────────────
+_REF_RE = re.compile(r"^([A-Za-z]+)(\d+)$")
+
+
+def load_block_bundles(layout: Layout) -> dict:
+    """Load every blocks/{id}/ bundle referenced by the layout.
+
+    Returns {block_id: BlockBundle}. Raises EngineError on a missing or
+    incomplete bundle — composition only works from the verified registry.
+    """
+    blocks_dir = layout.blocks_dir or DEFAULT_BLOCKS_DIR
+    bundles, errors = {}, []
+    for inst in layout.blocks.values():
+        if inst.block_id in bundles:
+            continue
+        bdir = os.path.join(blocks_dir, inst.block_id)
+        needed = {n: os.path.join(bdir, n) for n in
+                  ("sheet.kicad_sch", "netlist.yaml", "block.yaml", "bom.md")}
+        missing = [n for n, p in needed.items() if not os.path.isfile(p)]
+        if missing:
+            errors.append(
+                f"block '{inst.block_id}': bundle incomplete under {bdir} "
+                f"(missing {', '.join(missing)}) — extract it with "
+                f"extract_block.py and gate with check_block.py first")
+            continue
+        with open(needed["sheet.kicad_sch"], "r", encoding="utf-8") as f:
+            sheet_text = f.read()
+        with open(needed["block.yaml"], "r", encoding="utf-8") as f:
+            contract = yaml.safe_load(f) or {}
+        with open(needed["bom.md"], "r", encoding="utf-8") as f:
+            bom_entries = load_bom_from_markdown(f.read())
+        bundles[inst.block_id] = BlockBundle(
+            block_id=inst.block_id, dir=bdir, sheet_text=sheet_text,
+            ports=[(str(p["name"]), str(p.get("dir", "bidirectional")))
+                   for p in contract.get("ports", [])],
+            rails=[str(r["name"]) for r in contract.get("rails", [])],
+            netlist=load_intended_netlist(needed["netlist.yaml"]),
+            bom_entries=bom_entries,
+        )
+    if errors:
+        raise EngineError(errors)
+    return bundles
+
+
+def _instance_ref_maps(layout: Layout, bundles: dict) -> dict:
+    """Per-instance refdes re-annotation: {instance: {old_ref: new_ref}}.
+
+    v1 strategy (ROADMAP W1b): each instance owns a numeric range — its
+    block refs are offset by refdes_base (default (sorted-index + 1) * 100),
+    so two nau7802 instances become U102… and U202…. Collisions are checked
+    by _preflight_blocks.
+    """
+    maps = {}
+    for i, inst_name in enumerate(sorted(layout.blocks)):
+        inst = layout.blocks[inst_name]
+        base = inst.refdes_base or (i + 1) * 100
+        bundle = bundles[inst.block_id]
+        ref_map = {}
+        for ref in bundle.netlist.components:
+            m = _REF_RE.match(ref)
+            if not m:
+                raise EngineError([
+                    f"block '{inst.block_id}' ref '{ref}': cannot re-annotate "
+                    f"(expected PREFIX+NUMBER)"])
+            ref_map[ref] = f"{m.group(1)}{int(m.group(2)) + base}"
+        maps[inst_name] = ref_map
+    return maps
+
+
+def _preflight_blocks(netlist: IntendedNetlist, layout: Layout,
+                      bundles: dict, ref_maps: dict) -> list:
+    """Structural gates for block composition. Returns error messages."""
+    errors = []
+    power = set(layout.power_nets) | {"GND"}
+
+    for inst_name in sorted(layout.blocks):
+        inst = layout.blocks[inst_name]
+        bundle = bundles[inst.block_id]
+        port_names = [p for p, _s in bundle.ports]
+
+        # Port-map parity: exactly the block's declared ports, no more, no less.
+        for p in port_names:
+            if p not in inst.port_map:
+                errors.append(
+                    f"block {inst_name}: port '{p}' is not mapped "
+                    f"(port_map must cover every port in {inst.block_id}/block.yaml)")
+        for p in inst.port_map:
+            if p not in port_names:
+                errors.append(
+                    f"block {inst_name}: port_map names unknown port '{p}' "
+                    f"(block {inst.block_id} has: {', '.join(port_names)})")
+
+        # Every mapped net must exist somewhere the wiring can reach it.
+        for p, net in inst.port_map.items():
+            if not net:
+                errors.append(f"block {inst_name}: port '{p}' maps to an empty net")
+            elif net not in power and net not in netlist.nets:
+                errors.append(
+                    f"block {inst_name}: port '{p}' maps to net '{net}' which is "
+                    f"neither declared in the netlist YAML nor a power net")
+
+        # Rails connect globally via power symbols — the board must carry them.
+        for rail in bundle.rails:
+            if rail not in power:
+                errors.append(
+                    f"block {inst_name}: requires rail '{rail}' — add it to the "
+                    f"layout power_nets (and budget it) or pick another block")
+
+    # Re-annotated refs must be unique across the whole board.
+    seen = {ref: "board" for ref in netlist.components}
+    for inst_name in sorted(ref_maps):
+        for old, new in sorted(ref_maps[inst_name].items()):
+            if new in seen:
+                errors.append(
+                    f"block {inst_name}: re-annotated ref {new} (was {old}) "
+                    f"collides with {seen[new]} — set an explicit refdes_base")
+            else:
+                seen[new] = f"block {inst_name}"
+    return errors
+
+
+def _clone_sheet_text(bundle: BlockBundle, ref_map: dict) -> str:
+    """Per-instance copy of the block sheet: refs re-annotated, fresh root uuid.
+
+    The sheet was emitted by this repo's builder, so the rewrite targets its
+    exact serialization: ``(property "Reference" "R2"`` and the instances-block
+    ``(reference "R2")``. Everything else — symbols, geometry, baked PCBWay
+    fields — is byte-identical to the validated original.
+    """
+    text = bundle.sheet_text
+
+    def _sub_prop(m):
+        return f'(property "Reference" "{ref_map.get(m.group(1), m.group(1))}"'
+
+    def _sub_inst(m):
+        return f'(reference "{ref_map.get(m.group(1), m.group(1))}")'
+
+    text = re.sub(r'\(property "Reference" "([^"]+)"', _sub_prop, text)
+    text = re.sub(r'\(reference "([^"]+)"\)', _sub_inst, text)
+
+    m = re.search(r'\(uuid "([0-9a-fA-F-]+)"\)', text)
+    if m:
+        text = text.replace(m.group(1), _uuid())
+    return text
+
+
+def _flatten_intended(netlist: IntendedNetlist, layout: Layout,
+                      bundles: dict, ref_maps: dict) -> IntendedNetlist:
+    """The whole-board intended netlist: board nets + every block fragment
+    folded through its port map (KiCad hierarchy semantics — ports join the
+    mapped board net, rails merge globally, internals get 'instance/' names).
+    This is what the built hierarchy must match, so verify sees through ports."""
+    flat = copy.deepcopy(netlist)
+    for inst_name in sorted(layout.blocks):
+        inst = layout.blocks[inst_name]
+        bundle = bundles[inst.block_id]
+        ref_map = ref_maps[inst_name]
+        port_names = {p for p, _s in bundle.ports}
+
+        for ref, comp in bundle.netlist.components.items():
+            new_ref = ref_map[ref]
+            flat.components[new_ref] = IntendedComponent(
+                ref=new_ref, part=comp.part, pins=list(comp.pins))
+
+        for net_name, net in bundle.netlist.nets.items():
+            if net_name in port_names:
+                target = inst.port_map[net_name]
+            elif net.net_type == "power":
+                target = net_name
+            else:
+                target = f"{inst_name}/{net_name}"
+            entry = flat.nets.get(target)
+            if entry is None:
+                entry = IntendedNet(name=target, net_type=net.net_type)
+                flat.nets[target] = entry
+            for p in net.pins:
+                entry.pins.append(IntendedPin(ref=ref_map[p.ref], pin=p.pin))
+
+        for nc in bundle.netlist.no_connects:
+            flat.no_connects.append(IntendedNoConnect(
+                ref=ref_map[nc.ref], pin=nc.pin, reason=nc.reason))
+    return flat
+
+
+def _merged_bom(bom_entries: list, layout: Layout, bundles: dict,
+                ref_maps: dict) -> list:
+    """Board BOM + every block's BOM subset with re-annotated refs — the flat
+    view Stage 9 uploads and cross_check verifies (block facts stay in the
+    bundle; this is a derived artifact, not a second home)."""
+    merged = list(bom_entries)
+    for inst_name in sorted(layout.blocks):
+        inst = layout.blocks[inst_name]
+        ref_map = ref_maps[inst_name]
+        for entry in bundles[inst.block_id].bom_entries:
+            merged.append(dc_replace(
+                entry, reference=ref_map.get(entry.reference, entry.reference)))
+    return merged
+
+
+def emit_flat_bom_markdown(entries: list, project: str) -> str:
+    """Serialize merged BOM entries back to the Stage-3 markdown table format
+    (readable by parse_bom_records / load_bom_from_markdown round-trip)."""
+    cols = ["Ref", "Value", "Part Number", "Manufacturer", "Package",
+            "Description", "Footprint", "Supplier", "Supplier PN", "Type",
+            "Notes"]
+    lines = [f"# Flat BOM — {project} (board + composed blocks, engine-derived)",
+             "", "| " + " | ".join(cols) + " |",
+             "|" + "|".join("-" * (len(c) + 2) for c in cols) + "|"]
+
+    def _refkey(e):
+        m = _REF_RE.match(e.reference)
+        return (m.group(1), int(m.group(2))) if m else (e.reference, 0)
+
+    for e in sorted(entries, key=_refkey):
+        lines.append("| " + " | ".join([
+            e.reference, e.value, e.part_number, e.manufacturer, e.package,
+            e.description, e.footprint, e.supplier, e.supplier_pn,
+            "DNP" if e.dnp else "", "",
+        ]) + " |")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _compose_blocks(sch: KicadSchematic, layout: Layout, bundles: dict,
+                    ref_maps: dict, clone_dir: str, sheet_file_prefix: str):
+    """Write per-instance clones, place their sheet symbols, wire the pins.
+
+    Returns the list of clone paths written (for cleanup on verify failure).
+    """
+    power = set(layout.power_nets) | {"GND"}
+    clone_paths = []
+    for inst_name in sorted(layout.blocks):
+        inst = layout.blocks[inst_name]
+        bundle = bundles[inst.block_id]
+
+        clone_name = f"{sheet_file_prefix}_{inst_name}.kicad_sch"
+        clone_path = os.path.join(clone_dir, clone_name)
+        with open(clone_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(_clone_sheet_text(bundle, ref_maps[inst_name]))
+        clone_paths.append(clone_path)
+
+        sheet = sch.add_sheet(inst_name, clone_name, inst.x, inst.y,
+                              ports=bundle.ports)
+        sheet.child = load_kicad_sch(clone_path, resolve_from_libraries=False)
+        for port_name, _shape in bundle.ports:
+            net = inst.port_map[port_name]
+            if net in power:
+                sch.power_at_sheet_pin(inst_name, port_name, net)
+            else:
+                sch.label_at_sheet_pin(inst_name, port_name, net)
+    return clone_paths
+
+
 def _register_symbols(sch: KicadSchematic, layout: Layout):
     """Register every lib_symbol needed by the placements + power symbols."""
     lib_ids = {pl.lib_id for pl in layout.placements.values()}
@@ -354,8 +655,14 @@ def _resolve_library_symbols(layout: Layout, libraries=None):
         raise EngineError(errors)
 
 
+def _file_slug(name):
+    slug = re.sub(r"[^A-Za-z0-9_]+", "_", (name or "board")).strip("_")
+    return slug or "board"
+
+
 def build_schematic(netlist: IntendedNetlist, bom_entries: list, layout: Layout,
-                    uuid_seed=None, libraries=None) -> KicadSchematic:
+                    uuid_seed=None, libraries=None,
+                    clone_dir=None, sheet_file_prefix=None) -> KicadSchematic:
     """Assemble a KicadSchematic from the three data sources.
 
     Raises EngineError (with aggregated messages) on any structural problem.
@@ -363,17 +670,38 @@ def build_schematic(netlist: IntendedNetlist, bom_entries: list, layout: Layout,
 
     ``libraries`` is an optional check_kicad_library.LibrarySet used to resolve any
     ``from_library`` symbols (parts embedded verbatim from a registered library).
+
+    When the layout has a ``blocks:`` section (ROADMAP W1b), per-instance
+    child sheet files are written into ``clone_dir`` (required — they must
+    live next to the parent .kicad_sch) and the returned schematic carries
+    ``_block_bundles`` / ``_block_ref_maps`` / ``_block_clone_paths`` for the
+    caller's flattening and cleanup.
     """
     bom_by_ref = {e.reference: e for e in bom_entries}
 
     # Resolve embedded library symbols before the gate so it sees their real pins.
     _resolve_library_symbols(layout, libraries)
 
+    bundles, ref_maps = {}, {}
+    if layout.blocks:
+        if clone_dir is None:
+            raise EngineError([
+                "layout has a blocks: section but no clone_dir was given — "
+                "the engine writes one child sheet file per block instance "
+                "next to the output schematic"])
+        bundles = load_block_bundles(layout)
+        ref_maps = _instance_ref_maps(layout, bundles)
+
     errors = _preflight(netlist, bom_by_ref, layout)
+    if layout.blocks:
+        errors += _preflight_blocks(netlist, layout, bundles, ref_maps)
     if errors:
         raise EngineError(errors)
 
     sch = KicadSchematic(layout.title, rev=layout.rev, uuid_seed=uuid_seed)
+    sch._block_bundles = bundles
+    sch._block_ref_maps = ref_maps
+    sch._block_clone_paths = []
     _register_symbols(sch, layout)
 
     # Place components (BOM owns value/footprint + PCBway identity; layout owns
@@ -404,6 +732,12 @@ def build_schematic(netlist: IntendedNetlist, bom_entries: list, layout: Layout,
 
     for nc in netlist.no_connects:
         sch.nc_at_pin(nc.ref, str(nc.pin))
+
+    # Compose proven blocks: clone child sheets, place sheet symbols, wire ports.
+    if layout.blocks:
+        prefix = sheet_file_prefix or _file_slug(layout.project or layout.title)
+        sch._block_clone_paths = _compose_blocks(
+            sch, layout, bundles, ref_maps, clone_dir, prefix)
 
     unassigned = sch.ensure_all_pins_assigned()
     if unassigned:
@@ -458,35 +792,86 @@ def self_verify(netlist: IntendedNetlist, bom_entries: list, sch: KicadSchematic
 # ─── Top-level orchestration ─────────────────────────────────────────
 def generate(netlist_path, bom_path, layout_path, out_path=None,
              uuid_seed=None, strict=False, libraries=None,
-             project_dir=None, extra_sym=None) -> GenerateResult:
+             project_dir=None, extra_sym=None, blocks_dir=None) -> GenerateResult:
     """Load the three data files, build, self-verify, and save iff clean.
 
     For any ``from_library`` symbol, the real library symbol is embedded verbatim;
     pass ``libraries`` (a LibrarySet) or ``project_dir`` / ``extra_sym`` so it can be
-    located beyond KiCad's built-ins.
+    located beyond KiCad's built-ins. ``blocks_dir`` overrides where block
+    bundles are looked up (default: the layout's ``blocks_dir:`` key, then the
+    skill's blocks/ registry).
     """
     netlist = load_intended_netlist(netlist_path)
     with open(bom_path, "r", encoding="utf-8") as f:
         bom_entries = load_bom_from_markdown(f.read())
     layout = load_layout(layout_path)
+    if blocks_dir:
+        layout.blocks_dir = blocks_dir
 
     if libraries is None and (project_dir or extra_sym):
         from check_kicad_library import build_library_set
         libraries = build_library_set(project_dir=project_dir, extra_sym=extra_sym)
 
+    # Block clones must sit next to the parent .kicad_sch; with no output
+    # path (verify-only run) they go to a temp dir and are discarded.
+    tmp_ctx, clone_dir, sheet_file_prefix = None, None, None
+    if layout.blocks:
+        if out_path:
+            clone_dir = os.path.dirname(os.path.abspath(out_path)) or "."
+            os.makedirs(clone_dir, exist_ok=True)
+            sheet_file_prefix = Path(out_path).stem
+        else:
+            tmp_ctx = tempfile.TemporaryDirectory()
+            clone_dir = tmp_ctx.name
+
     try:
-        sch = build_schematic(netlist, bom_entries, layout,
-                              uuid_seed=uuid_seed, libraries=libraries)
-    except EngineError as e:
-        return GenerateResult(passed=False, errors=e.messages, warnings=[], sch=None)
+        try:
+            sch = build_schematic(netlist, bom_entries, layout,
+                                  uuid_seed=uuid_seed, libraries=libraries,
+                                  clone_dir=clone_dir,
+                                  sheet_file_prefix=sheet_file_prefix)
+        except EngineError as e:
+            return GenerateResult(passed=False, errors=e.messages, warnings=[],
+                                  sch=None)
 
-    errors, warnings = self_verify(netlist, bom_entries, sch, strict=strict)
-    result = GenerateResult(passed=not errors, errors=errors, warnings=warnings, sch=sch)
+        # Self-verify against the FLATTENED view: board + blocks through ports.
+        netlist_eff, bom_eff = netlist, bom_entries
+        if layout.blocks:
+            netlist_eff = _flatten_intended(netlist, layout,
+                                            sch._block_bundles,
+                                            sch._block_ref_maps)
+            bom_eff = _merged_bom(bom_entries, layout, sch._block_bundles,
+                                  sch._block_ref_maps)
 
-    if not errors and out_path:
-        sch.save(out_path)
-        result.output_path = out_path
-    return result
+        errors, warnings = self_verify(netlist_eff, bom_eff, sch, strict=strict)
+        result = GenerateResult(passed=not errors, errors=errors,
+                                warnings=warnings, sch=sch)
+
+        if not errors and out_path:
+            sch.save(out_path)
+            result.output_path = out_path
+            result.artifacts = list(getattr(sch, "_block_clone_paths", []))
+            if layout.blocks:
+                # The whole-board flat BOM (board + blocks, re-annotated refs)
+                # — the single table Stage 9 checks and uploads.
+                flat_bom_path = os.path.join(
+                    clone_dir, f"{Path(out_path).stem}_bom_flat.md")
+                with open(flat_bom_path, "w", encoding="utf-8",
+                          newline="\n") as f:
+                    f.write(emit_flat_bom_markdown(
+                        bom_eff, layout.project or layout.title))
+                result.artifacts.append(flat_bom_path)
+        elif errors and out_path:
+            # A failed build must not leave orphan clone files behind.
+            for p in getattr(sch, "_block_clone_paths", []):
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+        return result
+    finally:
+        if tmp_ctx is not None:
+            tmp_ctx.cleanup()
 
 
 # Printed after a successful save. The baked MPN/Manufacturer fields live on the
@@ -515,12 +900,16 @@ def _main(argv=None):
                     help="project dir whose lib-table to search for from_library symbols")
     ap.add_argument("--sym-lib", action="append", metavar="[NICK=]PATH",
                     help="extra symbol library for from_library symbols; repeatable")
+    ap.add_argument("--blocks-dir", default=None,
+                    help="block registry dir (default: layout blocks_dir:, "
+                         "then the skill's blocks/)")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     args = ap.parse_args(argv)
 
     res = generate(args.netlist, args.bom, args.layout, out_path=args.output,
                    uuid_seed=args.uuid_seed, strict=args.strict,
-                   project_dir=args.project_dir, extra_sym=args.sym_lib)
+                   project_dir=args.project_dir, extra_sym=args.sym_lib,
+                   blocks_dir=args.blocks_dir)
 
     if args.json:
         print(json.dumps({
@@ -530,6 +919,7 @@ def _main(argv=None):
             "errors": res.errors,
             "warnings": res.warnings,
             "output_path": res.output_path,
+            "artifacts": res.artifacts,
         }, indent=2))
     else:
         print(f"{'PASSED' if res.passed else 'FAILED'} "
@@ -540,6 +930,8 @@ def _main(argv=None):
             print(f"  warn   {w}")
         if res.output_path:
             print(f"Saved: {res.output_path}")
+            for a in res.artifacts:
+                print(f"  also wrote: {a}")
             print(PCBWAY_HANDOFF_NOTE)
         elif res.passed and not args.output:
             print("(no -o given; not saved)")
