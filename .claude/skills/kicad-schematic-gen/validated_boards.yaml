@@ -1,0 +1,88 @@
+# ─────────────────────────────────────────────────────────────────────
+# validated_boards.yaml — the bench-truth ledger (roadmap W2)
+# ─────────────────────────────────────────────────────────────────────
+# One entry per (board, rev) that has met reality. This is the durable
+# registry the promotion ritual writes to and the reviewer / Stage 2
+# consult. Rules (see references/promotion.md):
+#   * every bench session ends in a field report AND a ledger update;
+#   * every lesson must be ENCODED somewhere mechanical (a gate, a check,
+#     a test, a reference doc) — `encoded_in` entries are verified to
+#     exist by scripts/check_ledger.py ("path" or "path::needle");
+#   * a success is not "validated" until the bringup checklist passed on
+#     a physical board.
+# Verify:  python scripts/check_ledger.py [--json] [--strict]
+# ─────────────────────────────────────────────────────────────────────
+
+version: 1
+
+# status enum: in_bringup | validated | validated_with_lessons | failed | retired
+# lesson class enum: pinout | topology | sourcing | layout | process
+
+boards:
+  - board: battery_3s
+    rev: "3.0"
+    status: failed
+    bench_date: "2026-07-06"
+    outputs_dir: outputs_battery_3s
+    summary: >-
+      First bench-validated failure. USB C-to-C gave no power; A-to-C worked
+      but U1 (CH224K) self-heated at ~0.2A idle. Root cause: U1 pin 1 (VDD —
+      the chip's INTERNAL 3.3V LDO output, decouple-only per datasheet) was
+      tied to VBUS_USB, back-driving the regulator and browning out PD
+      negotiation. One fault, all three symptoms. Superseded by rev 3.1.
+    lessons:
+      - defect: >-
+          Device's own regulator OUTPUT pin (CH224K pin 1 VDD, internal LDO)
+          tied to the same device's power-INPUT rail (VBUS_USB) — ~1W
+          self-heat, dead C-to-C PD negotiation.
+        class: topology
+        encoded_in:
+          - ".claude/skills/kicad-schematic-gen/scripts/generate_from_data.py::internal-supply output shorted to an input rail"
+          - ".claude/skills/kicad-schematic-gen/tests/test_generate_from_data.py::test_regulator_output_shorted_to_supply"
+      - defect: >-
+          Four BOM lines carried LCSC distributor codes resolving to DIFFERENT
+          parts than the stated MPN (U6 clone, D3/D8 THT varistor for an SMF15A,
+          J1 wrong code, R28 wrong manufacturer) — invisible to every offline
+          check, caught by the answer-blind live verification.
+        class: sourcing
+        encoded_in:
+          - ".claude/skills/kicad-schematic-gen/scripts/check_pcbway.py::def looks_like_distributor_code"
+          - ".claude/skills/kicad-schematic-gen/scripts/bom_verify.py"
+      - defect: >-
+          Hand-edited schematic surgery must land on the 1.27mm grid — an
+          off-grid symbol/wire/label looks connected but floats electrically.
+        class: process
+        encoded_in:
+          - ".claude/skills/kicad-board-context/references/ingest.md::Off-grid geometry"
+    field_reports: []   # pre-dates the field-report template; facts preserved here
+
+  - board: battery_3s
+    rev: "3.1"
+    status: in_bringup
+    bench_date: null      # user to confirm post-rework bench results
+    outputs_dir: outputs_battery_3s
+    summary: >-
+      Corrective rev: U1 pin 1 moved to its own VDD_CH224K net with 1uF (C4
+      bumped 100nF->1uF), R28 1k series on pin 8 VBUS sense, 4 distributor
+      codes corrected, all PCBWay identity fields baked. In-hand v3.0 boards
+      salvaged by lifting pin 1 + tacking 1uF to GND. Awaiting bench
+      confirmation before promotion to validated.
+    lessons: []
+    field_reports: []
+
+# ── template entry ───────────────────────────────────────────────────
+#  - board: {name}
+#    rev: "{rev}"
+#    status: in_bringup
+#    bench_date: "{YYYY-MM-DD}"
+#    outputs_dir: {outputs dir, informational}
+#    summary: >-
+#      {one paragraph: what happened at the bench}
+#    lessons:
+#      - defect: "{what was wrong, physically}"
+#        class: pinout | topology | sourcing | layout | process
+#        encoded_in:
+#          - "{repo-relative path}::{needle that must appear in the file}"
+#    blocks_extracted: [{block names in blocks/ registry}]
+#    eval_anchor: "{repo-relative path, once promoted to a Tier-3 anchor}"
+#    field_reports: ["{repo-relative path to the dated field report}"]

@@ -12,10 +12,15 @@ unblock everything; the validation loop (W2) comes before the block library
 because it *produces* the blocks; W3 (layout verify) is deliberately last and
 designed after the block schema exists.
 
-Status: **A1 DONE, A2 DONE (2026-07-06).** Seeding order (user decision,
-2026-07-06): build the W2/W1a infrastructure first, **prove it end-to-end once
-on the validated NAU7802 block**, then run the bulk retroactive seeding pass
-over the rest of the fleet as the last step.
+Status: **A1 DONE, A2 DONE, W2 infrastructure DONE (2026-07-06).** W2 shipped:
+`templates/10_bringup.md` + `templates/10_field_report.md`,
+`references/promotion.md`, `validated_boards.yaml` (seeded with battery_3s
+v3.0 failure + lessons and v3.1 in-bringup), `scripts/check_ledger.py`
+(mechanically verifies every lesson's `path::needle` encoding still exists),
+SKILL.md Stage 10. Seeding order (user decision, 2026-07-06): **prove the
+loop end-to-end once on the validated NAU7802 block** (needs W1a's
+`extract_block.py`), then run the bulk retroactive pass over the rest of the
+fleet as the last step. → Next up: **W1a** (block format + extraction).
 
 Style note (user call): SKILL.md bloat is acceptable while features land —
 capabilities must never silently vanish. Pare down only when feature-complete.

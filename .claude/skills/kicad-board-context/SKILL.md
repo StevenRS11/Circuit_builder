@@ -186,6 +186,13 @@ Hypothesis-driven, with the context pack as ground truth:
 4. Ask the user for the cheapest discriminating measurement; iterate.
 5. Record every ruled-out hypothesis in the findings doc with the evidence —
    negative results are context for next time.
+6. When a root cause is confirmed at the bench, it feeds the generator
+   skill's **Stage 10 promotion ritual** (`../kicad-schematic-gen/references/
+   promotion.md`): file a field report, encode the lesson (gate/check/test/
+   doc), and update `../kicad-schematic-gen/validated_boards.yaml` — a
+   brownfield debug session deposits knowledge exactly like a greenfield
+   bringup does. Check the ledger *first*, too: the board (or its defect
+   class) may already have an entry.
 
 ### Mode: EXPLAIN ("what does this board / block do?")
 Walk the netlist + BOM + intent doc; answer at the altitude asked. If the

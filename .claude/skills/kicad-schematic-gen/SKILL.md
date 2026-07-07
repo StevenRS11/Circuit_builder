@@ -5,7 +5,7 @@ description: Generate KiCad .kicad_sch schematic files from natural-language cir
 
 # KiCad Schematic Generator
 
-Generate production-ready `.kicad_sch` schematic files from natural-language board descriptions through an **8-stage collaborative workflow**. Each stage produces a document the user reviews before proceeding, catching errors early — before they're baked into copper.
+Generate production-ready `.kicad_sch` schematic files from natural-language board descriptions through a **10-stage collaborative workflow**. Each stage produces a document the user reviews before proceeding, catching errors early — before they're baked into copper. The last stage closes the loop with reality: bench results are harvested into permanent gates, verified pinouts, and (eventually) proven blocks.
 
 ## Design hierarchy (read this first — it governs every change to this skill)
 
@@ -142,6 +142,14 @@ User description
 │   PACKAGE               │     Structural gate + answer-blind live BOM verify
 │   (bom_verify.py +      │     (catches wrong-part distributor codes) + DRC-gated
 │    generate_*.py)       │     fab export → {project}/PCBway_uploads/.
+└────────────┬────────────┘
+             ▼
+┌─────────────────────────┐
+│ Stage 10: BRINGUP &     │  ← Bringup checklist authored at delivery; after bench
+│   FIELD REPORT          │     time, field report + promotion ritual: failures →
+│   (check_ledger.py)     │     encoded gates/checks, successes → blocks / pinout
+│   The board meets       │     DB / eval anchors. Ledger: validated_boards.yaml.
+│   reality               │
 └─────────────────────────┘
 ```
 
@@ -1012,6 +1020,52 @@ Refuses to emit fab files from a board that fails DRC; auto-detects the copper s
 
 ---
 
+## Stage 10: Bringup & Field Report — the board meets reality
+
+**Input:** A delivered board (Stage 9 shipped) — or ANY board of ours arriving
+at / returning from the bench.
+
+This is the stage that makes the whole system *accumulate* (ROADMAP W2):
+every bench session must deposit something permanent. Non-gating for delivery,
+but **the promotion ritual itself is non-optional** once bench results exist.
+
+**Part A — Author the bringup checklist at delivery time** (with the Stage 9
+package, before the board ships): fill `templates/10_bringup.md` from the
+verified artifacts — expected voltages from the Stage-5 DC analysis, rails
+from the netlist, I²C addresses from the fact cards, pins from
+`generate_pinmap.py`'s `board_pins.h`. Every line measurable, every expected
+value cited from an artifact (never re-derived from memory); `[ASK]` anything
+the artifacts can't answer and resolve it with the user.
+
+**Part B — Field report after bench time** (~10 minutes, user + Claude):
+fill `templates/10_field_report.md` — checklist results, anomalies with
+symptom/root-cause/evidence, and the promotion candidates.
+
+**Part C — Promotion ritual** (`references/promotion.md` is the authority):
+- **Failures** are routed by class to the cheapest layer that would have
+  caught them — `pinout` → fact card + `pinout_db.json`; `topology` →
+  `generate_from_data` pre-flight gate or analyzer pattern **with a
+  regression test**; `sourcing` → `check_pcbway` gate / `bom_verify` coverage;
+  `layout` → `analyze_pcb_si` check or the W3 seed list; `process` → the
+  relevant SKILL/reference doc as a failure signature. (Worked example: the
+  battery_3s CH224K VDD→VBUS failure became pre-flight gate #5 + test.)
+- **Successes** promote: board → ledger status `validated`; proven
+  subcircuits → block-extraction candidates (W1); silicon-confirmed pinouts →
+  `pinout_db.json`; stable boards → Tier-3 eval anchors.
+
+**Part D — Update the ledger** (`validated_boards.yaml`) and verify it:
+```bash
+python check_ledger.py --strict     # every claimed deposit must actually exist
+```
+The checker proves each lesson's `encoded_in` (`path::needle`) still resolves —
+a refactor that orphans a bench lesson fails here instead of silently
+forgetting it. A lesson that lives only in prose is not a lesson.
+
+**Output:** completed bringup checklist, `{project}_field_report_{date}.md`,
+updated `validated_boards.yaml` (0 errors), and the routed deposits.
+
+---
+
 ## Final Delivery
 
 Once Stage 7 passes, deliver to the user:
@@ -1023,6 +1077,7 @@ Once Stage 7 passes, deliver to the user:
 5. **`{project_name}_07_review.md`** — Design review results
 6. **`{project_name}_08_layout_review.md`** — PCB layout review
 7. **`{project_name}/PCBway_uploads/`** — the Stage 9 upload package (PCBway BOM xlsx, gerbers+drill zip, centroid CSV, `verification_report.md`) — generated from source, 0 verification mismatches
+8. **`{project_name}_10_bringup.md`** — the Stage 10 bringup checklist (expected voltages/currents/addresses cited from the verified artifacts), ready for bench day
 8. **Summary message** including:
    - What was built and key design decisions
    - PCBway sourcing status — any lines still needing an in-stock distributor PN, or flagged by the rubric

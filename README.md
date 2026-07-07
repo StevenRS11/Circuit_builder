@@ -73,6 +73,7 @@ The approved spec's **Requirements Checklist is the test suite** for the build;
 | 7 · Verification | Validator + netlist verify + BOM cross-check + design review | All checks clean |
 | 8 · PCB Layout Review | Placement / trace-width / thermal / signal-integrity review | User fixes before fab |
 | 9 · PCBway Upload Package | BOM xlsx + gerbers + centroid, answer-blind BOM verify | 0 mismatches, DRC clean |
+| 10 · Bringup & Field Report | Bench checklist → field report → promotion ritual | `check_ledger` clean — every lesson stays encoded |
 
 ```bash
 # Stage 6 engine — the primary generation path
