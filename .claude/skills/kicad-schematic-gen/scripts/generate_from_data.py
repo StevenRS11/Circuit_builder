@@ -246,6 +246,39 @@ def _preflight(netlist: IntendedNetlist, bom_by_ref: dict, layout: Layout) -> li
             elif len(homes) > 1:
                 errors.append(f"{ref}.{pin}: assigned to multiple nets {homes}")
 
+    # 5: internal-supply output shorted to an input rail (the CH224K VDD->VBUS class).
+    #    A device's own regulator/LDO OUTPUT pin (type power_out — e.g. an internal
+    #    3.3V rail) must not share a net with that SAME device's power-INPUT/supply
+    #    pin. Tying an LDO output onto its own supply rail back-drives the regulator:
+    #    on the battery_3s board this drew 0.2A of self-heat and browned out PD
+    #    negotiation. A schematic can be internally self-consistent yet still contain
+    #    this defect, so the pin-side types are the only place to catch it — see
+    #    tests/test_generate_from_data.py::test_regulator_output_shorted_to_supply.
+    pin_type = {}   # (ref, pin_number) -> lowercased pin type from the layout symbol
+    for r, pl in layout.placements.items():
+        sym = layout.symbols.get(pl.lib_id)
+        if sym is None:
+            continue
+        for p in sym.pins:
+            if len(p) > 2 and p[2]:
+                pin_type[(r, str(p[0]))] = str(p[2]).lower()
+    for net_name, net in netlist.nets.items():
+        by_ref = {}
+        for p in net.pins:
+            t = pin_type.get((p.ref, str(p.pin)))
+            if t:
+                by_ref.setdefault(p.ref, []).append((str(p.pin), t))
+        for r, pins in by_ref.items():
+            outs = [pn for pn, t in pins if t == "power_out"]
+            ins = [pn for pn, t in pins if t == "power_in"]
+            if outs and ins:
+                errors.append(
+                    f"{r}: regulator/output pin(s) {outs} shorted to power-input "
+                    f"pin(s) {ins} on net '{net_name}' — an internal-supply output "
+                    f"tied to a rail (CH224K VDD->VBUS class). Give the output its "
+                    f"own net with only a decoupling cap to GND."
+                )
+
     return errors
 
 

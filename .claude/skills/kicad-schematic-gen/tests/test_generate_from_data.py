@@ -204,6 +204,37 @@ class TestGates:
                             load_bom_from_markdown(BOM),
                             load_layout_from_string(LAYOUT))
 
+    def test_regulator_output_shorted_to_supply(self):
+        # CH224K VDD->VBUS class (battery_3s field failure): a device's own internal
+        # regulator/LDO OUTPUT (power_out) shorted onto that same device's power-INPUT
+        # supply pin. The schematic is self-consistent, so only the pin-side types
+        # catch it. Retype U1.2 as the supply (power_in) and U1.3 as an internal LDO
+        # output (power_out), then place both on one net.
+        layout = (LAYOUT
+                  .replace('["2", "VIN", "input", "left", 0]',
+                           '["2", "VIN", "power_in", "left", 0]')
+                  .replace('["3", "VOUT", "output", "right", 0]',
+                           '["3", "VDD", "power_out", "right", 0]'))
+        netlist = (NETLIST
+                   .replace('      - { ref: U1, pin: "3" }\n', '')          # off +3V3
+                   .replace('      - { ref: U1, pin: "2" }\n',              # onto VIN_NET
+                            '      - { ref: U1, pin: "2" }\n'
+                            '      - { ref: U1, pin: "3" }\n'))
+        with pytest.raises(EngineError, match="shorted to power-input"):
+            build_schematic(load_intended_netlist_from_string(netlist),
+                            load_bom_from_markdown(BOM),
+                            load_layout_from_string(layout))
+
+    def test_regulator_output_on_own_net_is_ok(self):
+        # The fix: the same power_out pin on its own decouple-only net must pass.
+        layout = LAYOUT.replace('["3", "VOUT", "output", "right", 0]',
+                                '["3", "VDD", "power_out", "right", 0]')
+        # Default NETLIST keeps U1.3 alone with passives on +3V3 (no U1 power_in there).
+        sch = build_schematic(load_intended_netlist_from_string(NETLIST),
+                              load_bom_from_markdown(BOM),
+                              load_layout_from_string(layout))
+        assert _comp(sch, "U1") is not None
+
     def test_unknown_lib_id_without_symbol(self):
         # Point U1's placement at a lib_id with no symbols: entry (the symbols
         # key stays "custom:REG", so "Mystery:PART" is genuinely undefined).

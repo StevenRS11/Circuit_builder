@@ -99,11 +99,19 @@ def _first_of(block: str, keys) -> str:
 
 
 def parse_symbols(sch_text: str) -> list:
-    """Return one dict per placed, in-BOM symbol instance in the schematic."""
+    """Return one dict per placed, in-BOM symbol instance in the schematic.
+
+    Placed symbols are identified structurally — a placed instance carries a
+    ``(lib_id ...)`` while ``lib_symbols`` definitions never do — rather than
+    by indentation, so this works on both KiCad-saved files (tab-indented)
+    and generator-emitted files (space-indented).
+    """
     comps = []
-    for m in re.finditer(r"(?m)^\t\(symbol\b", sch_text):
-        s = m.start() + 1
+    for m in re.finditer(r"(?m)^[ \t]*(\(symbol)\b", sch_text):
+        s = m.start(1)
         block = sch_text[s:_balanced_end(sch_text, s)]
+        if "(lib_id " not in block:
+            continue  # a lib_symbols definition, not a placed instance
         ref = _field(block, "Reference")
         if not ref or ref.startswith("#"):
             continue

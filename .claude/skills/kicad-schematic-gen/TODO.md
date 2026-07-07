@@ -38,6 +38,9 @@ rather than only generating a whole-board schematic. This is the unit a KiCad
   tying new nets into existing rails by name; sheet pins vs flat global labels.
 
 ## Loader brownfield-fallback: resolve missing cached symbols from libraries
+**[P1 — now the main trust gap for the `kicad-board-context` skill: its ingest
+of hand-built/pasted schematics inherits this over-reporting. Recognition
+guidance lives in that skill's `references/ingest.md` until this lands.]**
 `load_kicad_sch` currently resolves placed symbols **only** from the file's
 embedded `(lib_symbols)` cache, by exact `lib_id` match. If an instance's `lib_id`
 isn't in that cache (stale cache from a cross-project paste — e.g. cached as
@@ -53,10 +56,13 @@ tolerates this by falling back to the library, so our tool over-reports vs ERC.
   exist (`build_library_set`, `load_symbol_block`, `add_lib_symbol_from_block`).
 - Makes the verify-existing-board path trustworthy (matches KiCad's behaviour).
 
-## Decompile an existing `.kicad_sch` → skill data model (thin, reusable atom)
-The reusable core of "brownfield" mode: turn an existing schematic into the
-skill's `05b_netlist.yaml` using the existing `extract_netlist()`. This is mostly
-mechanical (geometry → nets) and is the prerequisite for both the fragment feature
-and any review of an existing board. The *judgment* layers (spec, BOM intent, net
-class tags, current budgets) are NOT worth reverse-generating as tooling — most
-builds go through the full greenfield pipeline; do those by hand for one-offs.
+## ~~Decompile an existing `.kicad_sch` → skill data model~~ — DONE (2026-07-06)
+Implemented as the sibling **`kicad-board-context`** skill's ingest phase:
+`extract_netlist.py` (schematic → 05b YAML, round-trip self-verified),
+`extract_bom.py` (fields → flat BOM), `summarize_pcb.py`, `reconcile.py`
+(cross-artifact drift, incl. the F8 field-propagation check). The judgment
+layers (net class tags, intent doc) stay Claude-authored in that skill's
+ENRICH phase, per the original scoping. Note: `parse_symbols` in
+`crosscheck_pcbway_plugin_bom.py` was fixed along the way to identify placed
+symbols structurally (`(lib_id ...)`) instead of by tab indentation — it
+previously returned 0 rows on generator-emitted (space-indented) schematics.
