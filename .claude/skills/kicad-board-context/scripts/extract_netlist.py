@@ -87,13 +87,15 @@ def _is_power_component(sch, comp) -> bool:
 
 # ─── extraction ──────────────────────────────────────────────────────
 
-def extract(sch_path: str):
+def extract(sch_path: str, project_dir=None, extra_sym=None):
     """Extract the intended-netlist data model from a .kicad_sch.
 
     Returns (doc, summary) where doc is a plain dict in 05b shape and summary
-    holds extraction statistics/warnings.
+    holds extraction statistics/warnings. Symbols missing from the file's
+    embedded cache are resolved from installed/project libraries (the loader
+    fallback) and reported in the summary — see references/ingest.md.
     """
-    sch = load_kicad_sch(sch_path)
+    sch = load_kicad_sch(sch_path, project_dir=project_dir, extra_sym=extra_sym)
     netlist = extract_netlist(sch)
 
     power_refs = {c.reference for c in sch.components if _is_power_component(sch, c)}
@@ -206,6 +208,8 @@ def extract(sch_path: str):
         "no_connect_markers": len(nc_pins),
         "unmatched_nc_markers": unmatched_nc,
         "floating_pins": [f"{r}.{p}" for r, p in floating],
+        "stale_lib_cache": list(getattr(sch, "stale_lib_cache", [])),
+        "unresolved_lib_ids": list(getattr(sch, "unresolved_lib_ids", [])),
     }
     return doc, summary
 
@@ -267,11 +271,11 @@ def emit_yaml(doc: dict, sch_path: str) -> str:
 
 # ─── self-verification ───────────────────────────────────────────────
 
-def self_verify(yaml_text: str, sch_path: str):
+def self_verify(yaml_text: str, sch_path: str, project_dir=None, extra_sym=None):
     """Round-trip: load the emitted YAML and verify it against the source."""
     from verify_netlist import verify, load_intended_netlist_from_string
     intended = load_intended_netlist_from_string(yaml_text)
-    sch = load_kicad_sch(sch_path)
+    sch = load_kicad_sch(sch_path, project_dir=project_dir, extra_sym=extra_sym)
     return verify(intended, sch)
 
 
@@ -286,12 +290,21 @@ def main():
                     help="print extraction summary as JSON")
     ap.add_argument("--strict", action="store_true",
                     help="exit 1 if the self-verification round-trip fails")
+    ap.add_argument("--project-dir", default=None,
+                    help="KiCad project dir — searched when resolving symbols "
+                         "missing from the file's embedded cache")
+    ap.add_argument("--sym-lib", action="append", default=None,
+                    metavar="[NICK=]PATH",
+                    help="extra symbol library for stale-cache resolution "
+                         "(repeatable)")
     args = ap.parse_args()
 
-    doc, summary = extract(args.schematic)
+    doc, summary = extract(args.schematic, project_dir=args.project_dir,
+                           extra_sym=args.sym_lib)
     yaml_text = emit_yaml(doc, args.schematic)
 
-    result = self_verify(yaml_text, args.schematic)
+    result = self_verify(yaml_text, args.schematic,
+                         project_dir=args.project_dir, extra_sym=args.sym_lib)
     summary["self_verify_passed"] = result.passed
     summary["self_verify_errors"] = [i.message for i in result.errors]
 
@@ -312,6 +325,15 @@ def main():
             print(f"WARNING: {len(summary['floating_pins'])} floating pin(s) "
                   f"(no net, no NC marker): {', '.join(summary['floating_pins'])}",
                   file=sys.stderr)
+        if summary["stale_lib_cache"]:
+            print(f"WARNING: stale lib_symbols cache — resolved from installed "
+                  f"libraries: {', '.join(summary['stale_lib_cache'])} "
+                  f"(re-save in KiCad to refresh)", file=sys.stderr)
+        if summary["unresolved_lib_ids"]:
+            print(f"WARNING: unresolvable lib_id(s) — components dropped, "
+                  f"connectivity around them is UNRELIABLE: "
+                  f"{', '.join(summary['unresolved_lib_ids'])} "
+                  f"(pass --project-dir / --sym-lib)", file=sys.stderr)
         if not result.passed:
             print("WARNING: self-verification failed — the extracted netlist "
                   "does not round-trip against the source schematic. Suspect a "

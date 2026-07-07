@@ -190,7 +190,14 @@ Hypothesis-driven, with the context pack as ground truth:
 ### Mode: EXPLAIN ("what does this board / block do?")
 Walk the netlist + BOM + intent doc; answer at the altitude asked. If the
 explanation surfaces something odd, note it as a finding — don't silently
-absorb it.
+absorb it. For MCU boards, the firmware pinmap is part of explaining/using the
+board — generate it straight from the schematic:
+```bash
+python {GEN}/generate_pinmap.py {board}.kicad_sch -o claude_context/firmware --sketch
+```
+(`board_pins.h` + bringup sketch; also the right first artifact when the
+user's actual question is "why doesn't my firmware see the sensor" — compare
+its pin truth against their code.)
 
 ### Mode: RESELECT ("replace this part / it's EOL / find a cheaper one")
 The generator's Stage-2 machinery, seeded from the pack instead of a spec:

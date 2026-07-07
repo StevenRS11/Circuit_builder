@@ -737,7 +737,7 @@ Or from CLI:
 python validate_kicad_sch.py output.kicad_sch --json --netlist
 ```
 
-The validator runs 11 checks:
+The validator runs 12 checks:
 
 | Check                  | Severity | What it catches                             |
 |------------------------|----------|---------------------------------------------|
@@ -745,7 +745,8 @@ The validator runs 11 checks:
 | `dangling_wire`        | ERROR    | Wire endpoint going nowhere                  |
 | `disconnected_label`   | ERROR    | Label not touching any wire or pin           |
 | `duplicate_reference`  | ERROR    | Two components with same ref (R1, R1)        |
-| `missing_lib_symbol`   | ERROR    | Component uses undefined lib_symbol          |
+| `missing_lib_symbol`   | ERROR    | Component uses undefined lib_symbol (resolves nowhere) |
+| `stale_lib_cache`      | WARNING  | Symbol missing from file cache, resolved from installed libs — re-save in KiCad |
 | `single_pin_net`       | WARNING  | Net with only one connection (broken wire?)  |
 | `missing_junction`     | WARNING  | T-join without junction marker               |
 | `overlapping_components` | WARNING | Two components at same position             |
@@ -1027,6 +1028,16 @@ Once Stage 7 passes, deliver to the user:
    - PCBway sourcing status — any lines still needing an in-stock distributor PN, or flagged by the rubric
    - Things to verify in KiCad before layout
    - Any caveats or assumptions
+
+**For MCU boards, also generate the firmware pinmap handoff:**
+```bash
+python generate_pinmap.py {project_name}.kicad_sch -o {project_name}_firmware --sketch
+```
+Emits `board_pins.h` (every MCU GPIO ↔ named net, byte-deterministic, with a
+skipped-pins audit trail) and a `bringup.ino` skeleton (I²C scan on the board's
+SDA/SCL pins, status-LED blink). This closes the hardware/firmware seam — the
+firmware starts from the schematic's pin truth instead of a human re-typing it.
+MCU is auto-detected; pass `--mcu {ref}` if the board has several.
 
 All intermediate documents (spec, candidates, implementation reference) and the
 `{project_name}_datasheets/` cache (canonical datasheets + `index.md` citation ledger)

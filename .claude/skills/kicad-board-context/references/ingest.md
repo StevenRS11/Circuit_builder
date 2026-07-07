@@ -23,27 +23,32 @@ between them is often the defect. Consequences:
 
 ## Recognize these failure signatures BEFORE reporting errors
 
-### Stale lib_symbols cache (loader drops components)
+### Stale lib_symbols cache (auto-resolved since 2026-07-06 — read the warnings)
 
-`load_kicad_sch` resolves placed symbols **only** from the file's embedded
-`(lib_symbols)` cache by exact `lib_id` match. A schematic that was hand-built
-or received cross-project pastes can have instances whose `lib_id` is missing
-from its cache (e.g. cached as `Pololu_Breakout_DRV8825_1`, instance says
-`Custom:Pololu_Breakout_DRV8825`). The loader then **drops the component**,
-and everything wired to it cascades into false `dangling_wire` /
-`disconnected_label` / `floating_pin` errors — observed: 1 stale symbol → 14
-false errors. KiCad itself falls back to the library, so our tools over-report
-relative to ERC.
+A hand-built / cross-project-pasted schematic can place symbols whose `lib_id`
+is missing from the file's embedded `(lib_symbols)` cache. `load_kicad_sch`
+now mirrors KiCad: it **resolves the symbol from the installed/registered
+libraries** (pass `--project-dir` / `--sym-lib` so project and explicit libs
+are searched) and keeps full connectivity — the extraction summary and the
+validator report a `stale_lib_cache` **warning** per resolved symbol instead
+of a false-error cascade.
 
-**Signature:** a cluster of dangling/disconnected errors all geometrically
-around one absent component; `missing_lib_symbol` mentions; a ref present in
-`extract_bom` output (regex-based, doesn't need the cache) but absent from
+Two things still require attention:
+
+- **`stale_lib_cache` warnings** — connectivity is trustworthy (real pins were
+  used), but the file's cache is stale: have the user re-save the schematic in
+  KiCad, then re-ingest.
+- **`unresolved_lib_ids`** — the lib_id resolves *nowhere* (library not
+  registered on this machine, or renamed). The component **was dropped** and
+  every connectivity finding touching it is unreliable: do not report
+  dangling/floating errors around it as findings. Fix by passing the right
+  `--project-dir` / `--sym-lib`, or have the user install the library
+  (`kicad-import-lib`), then re-ingest.
+
+**Legacy signature (only for unresolved symbols now):** a cluster of
+dangling/disconnected errors around one absent component; a ref present in
+`extract_bom` output (regex-based, doesn't need the cache) but missing from
 `extract_netlist`'s components.
-
-**Response:** tell the user which symbol's cache is stale (open + re-save in
-KiCad refreshes it), rather than reporting the cascade as 14 findings. A
-loader library-fallback is on the generator skill's TODO; until it lands this
-recognition step is manual.
 
 ### Stale instance references (wrong/duplicate refs)
 

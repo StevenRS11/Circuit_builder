@@ -203,12 +203,129 @@ def _resolve_active_reference(comp_node, root_uuid, fallback_ref):
 
 # ─── .kicad_sch file loader ─────────────────────────────────────────
 
-def load_kicad_sch(filepath):
+def _parse_lib_symbol_node(sym_node):
+    """Parse one ``(symbol "…" …)`` definition node into (lib_id, LibSymbol).
+
+    Shared by the embedded-cache parse in load_kicad_sch and the library
+    fallback (which parses a block fetched from an installed library).
+    """
+    lib_id = sym_node[1] if len(sym_node) > 1 else ""
+
+    is_power = _find_node(sym_node, 'power') is not None
+
+    # Properties
+    props = {}
+    for prop in _find_nodes(sym_node, 'property'):
+        key, val = _parse_property(prop)
+        if key:
+            props[key] = val
+
+    # Pin names offset
+    pn_node = _find_node(sym_node, 'pin_names')
+    pin_names_offset = 1.016
+    pin_names_hide = False
+    if pn_node:
+        offset_node = _find_node(pn_node, 'offset')
+        if offset_node and len(offset_node) > 1:
+            pin_names_offset = float(offset_node[1])
+        pin_names_hide = 'hide' in pn_node
+
+    pin_numbers_hide = _find_node(sym_node, 'pin_numbers') is not None and \
+                       'hide' in (_find_node(sym_node, 'pin_numbers') or [])
+
+    # Parse pins from sub-symbol nodes (like "R_1_1")
+    pins = []
+    for sub_sym in _find_nodes(sym_node, 'symbol'):
+        for pin_node in _find_nodes(sub_sym, 'pin'):
+            if len(pin_node) >= 3:
+                pin_type = pin_node[1]  # passive, power_in, etc.
+                # pin_style = pin_node[2]  # line, etc.
+
+                px, py, prot = _parse_at(pin_node)
+                length = _get_float(pin_node, 'length', 2.54)
+
+                name_node = _find_node(pin_node, 'name')
+                pin_name = name_node[1] if name_node and len(name_node) > 1 else "~"
+
+                num_node = _find_node(pin_node, 'number')
+                pin_number = num_node[1] if num_node and len(num_node) > 1 else "?"
+
+                pins.append(Pin(
+                    number=pin_number, name=pin_name,
+                    pin_type=pin_type,
+                    x=px, y=py, length=length,
+                    rotation=int(prot),
+                ))
+
+    sym = LibSymbol(
+        lib_id=lib_id,
+        properties=props,
+        pins=pins,
+        is_power=is_power,
+        pin_names_offset=pin_names_offset,
+        pin_names_hide=pin_names_hide,
+        pin_numbers_hide=pin_numbers_hide,
+    )
+    return lib_id, sym
+
+
+def _resolve_missing_lib_symbols(sch, project_dir=None, extra_sym=None):
+    """Library fallback for a stale embedded lib_symbols cache.
+
+    KiCad tolerates a placed symbol whose lib_id is missing from the file's
+    embedded cache by falling back to the installed libraries; without this,
+    the loader drops the component's pins and every wire touching them
+    cascades into false dangling/disconnected/floating errors (observed:
+    1 stale symbol → 14 false errors). Mirror KiCad: resolve the symbol from
+    the registered libraries (built-in + user + project + explicit --sym-lib)
+    and record a warning on ``sch.stale_lib_cache`` — the file should still be
+    re-saved in KiCad to refresh its cache.
+    """
+    sch.stale_lib_cache = getattr(sch, 'stale_lib_cache', [])
+    sch.unresolved_lib_ids = getattr(sch, 'unresolved_lib_ids', [])
+    missing = sorted({c.lib_id for c in sch.components
+                      if c.lib_id and c.lib_id not in sch.lib_symbols})
+    if not missing:
+        return
+
+    try:
+        from check_kicad_library import build_library_set, load_symbol_block
+        libraries = build_library_set(project_dir=project_dir, extra_sym=extra_sym)
+    except Exception:
+        sch.unresolved_lib_ids.extend(missing)
+        return
+
+    for lib_id in missing:
+        block = None
+        try:
+            block = load_symbol_block(lib_id, libraries=libraries)
+        except Exception:
+            block = None
+        if not block:
+            sch.unresolved_lib_ids.append(lib_id)
+            continue
+        _, sym = _parse_lib_symbol_node(_parse_file(block))
+        # A library file names the symbol without a nickname — key the cache
+        # by the lib_id the placed instances actually reference.
+        sym.lib_id = lib_id
+        sch.lib_symbols[lib_id] = sym
+        sch.stale_lib_cache.append(lib_id)
+
+
+def load_kicad_sch(filepath, resolve_from_libraries=True,
+                   project_dir=None, extra_sym=None):
     """Parse a .kicad_sch file into a KicadSchematic object.
 
     This reads the S-expression file and reconstructs the in-memory
     representation needed by the validator. Not all fields are preserved
     (graphics, UUIDs, etc.) — only what's needed for validation.
+
+    If a placed symbol's lib_id is missing from the file's embedded
+    lib_symbols cache (stale cache — cross-project paste, hand-edit), the
+    symbol is resolved from the installed KiCad libraries like KiCad itself
+    does (``resolve_from_libraries=True``), recording a `stale_lib_cache`
+    warning instead of dropping the component. Pass ``project_dir`` /
+    ``extra_sym`` ("[NICK=]PATH" specs) to search project/explicit libraries.
     """
     with open(filepath, 'r', encoding='utf-8') as f:
         text = f.read()
@@ -230,63 +347,7 @@ def load_kicad_sch(filepath):
     lib_symbols_node = _find_node(tree, 'lib_symbols')
     if lib_symbols_node:
         for sym_node in _find_nodes(lib_symbols_node, 'symbol'):
-            lib_id = sym_node[1] if len(sym_node) > 1 else ""
-
-            is_power = _find_node(sym_node, 'power') is not None
-
-            # Properties
-            props = {}
-            for prop in _find_nodes(sym_node, 'property'):
-                key, val = _parse_property(prop)
-                if key:
-                    props[key] = val
-
-            # Pin names offset
-            pn_node = _find_node(sym_node, 'pin_names')
-            pin_names_offset = 1.016
-            pin_names_hide = False
-            if pn_node:
-                offset_node = _find_node(pn_node, 'offset')
-                if offset_node and len(offset_node) > 1:
-                    pin_names_offset = float(offset_node[1])
-                pin_names_hide = 'hide' in pn_node
-
-            pin_numbers_hide = _find_node(sym_node, 'pin_numbers') is not None and \
-                               'hide' in (_find_node(sym_node, 'pin_numbers') or [])
-
-            # Parse pins from sub-symbol nodes (like "R_1_1")
-            pins = []
-            for sub_sym in _find_nodes(sym_node, 'symbol'):
-                for pin_node in _find_nodes(sub_sym, 'pin'):
-                    if len(pin_node) >= 3:
-                        pin_type = pin_node[1]  # passive, power_in, etc.
-                        # pin_style = pin_node[2]  # line, etc.
-
-                        px, py, prot = _parse_at(pin_node)
-                        length = _get_float(pin_node, 'length', 2.54)
-
-                        name_node = _find_node(pin_node, 'name')
-                        pin_name = name_node[1] if name_node and len(name_node) > 1 else "~"
-
-                        num_node = _find_node(pin_node, 'number')
-                        pin_number = num_node[1] if num_node and len(num_node) > 1 else "?"
-
-                        pins.append(Pin(
-                            number=pin_number, name=pin_name,
-                            pin_type=pin_type,
-                            x=px, y=py, length=length,
-                            rotation=int(prot),
-                        ))
-
-            sym = LibSymbol(
-                lib_id=lib_id,
-                properties=props,
-                pins=pins,
-                is_power=is_power,
-                pin_names_offset=pin_names_offset,
-                pin_names_hide=pin_names_hide,
-                pin_numbers_hide=pin_numbers_hide,
-            )
+            lib_id, sym = _parse_lib_symbol_node(sym_node)
             sch.lib_symbols[lib_id] = sym
 
     # ── Parse placed components (symbol nodes at top level) ──
@@ -376,6 +437,11 @@ def load_kicad_sch(filepath):
     for nc_node in _find_nodes(tree, 'no_connect'):
         nx, ny, _ = _parse_at(nc_node)
         sch.no_connects.append(NoConnect(nx, ny))
+
+    # ── Library fallback for lib_ids missing from the embedded cache ──
+    if resolve_from_libraries:
+        _resolve_missing_lib_symbols(sch, project_dir=project_dir,
+                                     extra_sym=extra_sym)
 
     return sch
 
@@ -727,6 +793,24 @@ def _check_missing_lib_symbols(sch):
     return issues
 
 
+def _check_stale_lib_cache(sch):
+    """Warn for symbols the loader had to resolve from installed libraries
+    because the file's embedded lib_symbols cache doesn't contain them.
+    Connectivity is checked with the real pins (matching KiCad's fallback),
+    but the file should be re-saved in KiCad to refresh its cache."""
+    issues = []
+    for lib_id in getattr(sch, 'stale_lib_cache', []):
+        refs = sorted(c.reference for c in sch.components if c.lib_id == lib_id)
+        issues.append(ValidationIssue(
+            "warning", "stale_lib_cache",
+            f"'{lib_id}' ({', '.join(refs)}) missing from the file's embedded "
+            f"lib_symbols cache — resolved from installed libraries; re-save "
+            f"the schematic in KiCad to refresh its cache",
+            references=refs,
+        ))
+    return issues
+
+
 def _check_floating_pins(sch, netlist):
     """Pins not connected to any wire, label, or other pin (and not marked no-connect)."""
     issues = []
@@ -1041,6 +1125,7 @@ def _check_similar_net_names(sch):
 ALL_CHECKS = [
     "duplicate_reference",
     "missing_lib_symbol",
+    "stale_lib_cache",
     "floating_pin",
     "single_pin_net",
     "dangling_wire",
@@ -1071,6 +1156,7 @@ def validate(sch: KicadSchematic,
     check_funcs = {
         "duplicate_reference": lambda: _check_duplicate_references(sch),
         "missing_lib_symbol": lambda: _check_missing_lib_symbols(sch),
+        "stale_lib_cache": lambda: _check_stale_lib_cache(sch),
         "floating_pin": lambda: _check_floating_pins(sch, netlist),
         "single_pin_net": lambda: _check_single_pin_nets(netlist),
         "dangling_wire": lambda: _check_dangling_wires(sch),
@@ -1101,9 +1187,11 @@ def validate(sch: KicadSchematic,
     )
 
 
-def validate_file(filepath, **kwargs):
+def validate_file(filepath, project_dir=None, extra_sym=None,
+                  resolve_from_libraries=True, **kwargs):
     """Validate a .kicad_sch file. Convenience wrapper around load + validate."""
-    sch = load_kicad_sch(filepath)
+    sch = load_kicad_sch(filepath, resolve_from_libraries=resolve_from_libraries,
+                         project_dir=project_dir, extra_sym=extra_sym)
     return validate(sch, **kwargs)
 
 
@@ -1285,6 +1373,16 @@ Examples:
                         help="Include full netlist in output")
     parser.add_argument("--errors-only", action="store_true",
                         help="Only show errors, suppress warnings")
+    parser.add_argument("--project-dir", default=None,
+                        help="KiCad project dir — searches its sym-lib-table "
+                             "when resolving stale-cache symbols")
+    parser.add_argument("--sym-lib", action="append", default=None,
+                        metavar="[NICK=]PATH",
+                        help="Extra symbol library for stale-cache resolution "
+                             "(repeatable)")
+    parser.add_argument("--no-lib-fallback", action="store_true",
+                        help="Do not resolve cache-missing symbols from "
+                             "installed libraries (pre-fallback behavior)")
 
     args = parser.parse_args()
 
@@ -1294,7 +1392,9 @@ Examples:
         sys.exit(2)
 
     threshold = "error" if args.errors_only else "warning"
-    result = validate_file(filepath, severity_threshold=threshold)
+    result = validate_file(filepath, severity_threshold=threshold,
+                           project_dir=args.project_dir, extra_sym=args.sym_lib,
+                           resolve_from_libraries=not args.no_lib_fallback)
 
     if args.json:
         print(format_result_json(result, filepath=filepath, show_netlist=args.netlist))

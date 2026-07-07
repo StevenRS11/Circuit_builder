@@ -348,30 +348,36 @@ def _parse_symbol_entry(lib_name, sym_text):
 def _split_symbols(file_text):
     """Split a .kicad_sym file into top-level symbol blocks.
 
-    Top-level symbols start with a single-tab indent: \\t(symbol "Name"
-    Sub-symbols have double-tab: \\t\\t(symbol "Name_0_1"
+    Depth-based and indentation-agnostic: a top-level symbol is a
+    ``(symbol "Name"`` opening at paren depth 1 (directly inside
+    ``(kicad_symbol_lib …)``) — whether the file indents with tabs (KiCad's
+    own save style) or spaces (vendor exports, hand-written libraries).
+    Sub-symbols (``Name_0_1``) open deeper and stay inside their parent block.
     """
     blocks = []
     current_lines = []
-    depth = 0
+    depth = 0          # paren depth before the current line
     in_symbol = False
+    sym_depth = 0      # relative depth inside the symbol being captured
 
     for line in file_text.split('\n'):
-        # Detect top-level symbol start (single tab)
-        if re.match(r'^\t\(symbol\s+"', line) and not re.match(r'^\t\t', line):
-            if in_symbol and current_lines:
-                blocks.append('\n'.join(current_lines))
-            current_lines = [line]
-            in_symbol = True
-            depth = 1
-        elif in_symbol:
+        delta = line.count('(') - line.count(')')
+        if in_symbol:
             current_lines.append(line)
-            depth += line.count('(') - line.count(')')
-            if depth <= 0:
+            sym_depth += delta
+            if sym_depth <= 0:
                 blocks.append('\n'.join(current_lines))
                 current_lines = []
                 in_symbol = False
-                depth = 0
+        elif depth == 1 and re.match(r'\s*\(symbol\s+"', line):
+            current_lines = [line]
+            sym_depth = delta
+            if sym_depth <= 0:  # single-line symbol block
+                blocks.append(line)
+                current_lines = []
+            else:
+                in_symbol = True
+        depth += delta
 
     if in_symbol and current_lines:
         blocks.append('\n'.join(current_lines))

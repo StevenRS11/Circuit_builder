@@ -3,6 +3,12 @@
 Deferred features and improvements, newest context first. Each entry: what, why,
 and any groundwork already in place.
 
+> **See `ROADMAP.md` for the agreed strategic plan (2026-07-06):** block library
+> via hierarchical sheets (W1), validation loop / promotion ritual (W2), layout
+> verify (W3, design later), plus the loader-fallback (A1) and pinmap-handoff
+> (A2) adjacencies. Items below that overlap with it (loader fallback, module
+> fragments, verify_layout) are sequenced there.
+
 ## Wire the PCBWay plugin-BOM cross-check into Stage 9 (NOT yet wired)
 `scripts/crosscheck_pcbway_plugin_bom.py` exists and is tested
 (`tests/test_crosscheck_pcbway_plugin_bom.py`) but is **not referenced by SKILL.md
@@ -37,24 +43,18 @@ rather than only generating a whole-board schematic. This is the unit a KiCad
 - Open questions: refdes allocation that won't collide with the parent board;
   tying new nets into existing rails by name; sheet pins vs flat global labels.
 
-## Loader brownfield-fallback: resolve missing cached symbols from libraries
-**[P1 — now the main trust gap for the `kicad-board-context` skill: its ingest
-of hand-built/pasted schematics inherits this over-reporting. Recognition
-guidance lives in that skill's `references/ingest.md` until this lands.]**
-`load_kicad_sch` currently resolves placed symbols **only** from the file's
-embedded `(lib_symbols)` cache, by exact `lib_id` match. If an instance's `lib_id`
-isn't in that cache (stale cache from a cross-project paste — e.g. cached as
-`Pololu_Breakout_DRV8825_1` while the instance is `Custom:Pololu_Breakout_DRV8825`),
-the loader **drops the component**, losing its pins. Everything wired to those pins
-then cascades to false `dangling_wire` / `disconnected_label` / `floating_pin`
-errors (observed: 1 stale symbol → 14 false errors on pushbuttonDef). KiCad
-tolerates this by falling back to the library, so our tool over-reports vs ERC.
-- Fix: when an instance `lib_id` is absent from the cache, fall back to
-  `check_kicad_library.load_symbol_block(lib_id, project_dir=…)` and place its
-  pins anyway; emit a **warning** ("symbol resolved from library; file cache is
-  stale"), not a hard error. The resolver + embed path needed for this already
-  exist (`build_library_set`, `load_symbol_block`, `add_lib_symbol_from_block`).
-- Makes the verify-existing-board path trustworthy (matches KiCad's behaviour).
+## ~~Loader brownfield-fallback~~ — DONE (2026-07-06, roadmap item A1)
+`load_kicad_sch` now resolves cache-missing lib_ids from installed/registered
+libraries (`resolve_from_libraries=True` default; `--project-dir` / `--sym-lib`
+/ `--no-lib-fallback` CLI flags), emits a `stale_lib_cache` *warning* per
+resolved symbol (new 12th validator check) and tracks `unresolved_lib_ids`
+for symbols that resolve nowhere (still a `missing_lib_symbol` error).
+`extract_netlist.py` (board-context) surfaces both in its summary. Fixed along
+the way: `check_kicad_library._split_symbols` only recognized tab-indented
+top-level symbols — space-indented `.kicad_sym` files (vendor exports,
+hand-written libs) returned zero blocks; now depth-based. Tests:
+`tests/test_loader_fallback.py` incl. the 1-stale-symbol→false-cascade
+regression.
 
 ## ~~Decompile an existing `.kicad_sch` → skill data model~~ — DONE (2026-07-06)
 Implemented as the sibling **`kicad-board-context`** skill's ingest phase:
