@@ -53,7 +53,7 @@ if _script_dir not in sys.path:
 
 from generate_kicad_sch import (
     KicadSchematic, Pin, LibSymbol, PlacedComponent, Wire, Label,
-    GlobalLabel, Junction, NoConnect, snap_to_grid,
+    GlobalLabel, HierarchicalLabel, Junction, NoConnect, snap_to_grid,
 )
 
 
@@ -428,6 +428,14 @@ def load_kicad_sch(filepath, resolve_from_libraries=True,
         shape = _get_atom(gl_node, 'shape', 'bidirectional')
         sch.global_labels.append(GlobalLabel(text, gx, gy, shape, grot))
 
+    # ── Parse hierarchical labels (sheet ports) ──
+    for hl_node in _find_nodes(tree, 'hierarchical_label'):
+        text = hl_node[1] if len(hl_node) > 1 else ""
+        hx, hy, hrot = _parse_at(hl_node)
+        shape = _get_atom(hl_node, 'shape', 'bidirectional')
+        sch.hierarchical_labels.append(
+            HierarchicalLabel(text, hx, hy, shape, hrot))
+
     # ── Parse junctions ──
     for j_node in _find_nodes(tree, 'junction'):
         jx, jy, _ = _parse_at(j_node)
@@ -651,6 +659,12 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
             if _is_point_on_segment_inclusive(gl.x, gl.y, w.x1, w.y1, w.x2, w.y2):
                 uf.union(gl_key, _coord_key(w.x1, w.y1))
                 break
+    for hl in getattr(sch, 'hierarchical_labels', []):
+        hl_key = _coord_key(hl.x, hl.y)
+        for w in sch.wires:
+            if _is_point_on_segment_inclusive(hl.x, hl.y, w.x1, w.y1, w.x2, w.y2):
+                uf.union(hl_key, _coord_key(w.x1, w.y1))
+                break
 
     # 3. Register label positions
     for lbl in sch.labels:
@@ -659,6 +673,10 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
 
     for gl in sch.global_labels:
         key = _coord_key(gl.x, gl.y)
+        uf._ensure(key)
+
+    for hl in getattr(sch, 'hierarchical_labels', []):
+        key = _coord_key(hl.x, hl.y)
         uf._ensure(key)
 
     # 4. Handle junctions — union with any wire segment passing through
@@ -685,6 +703,11 @@ def extract_netlist(sch: KicadSchematic) -> Netlist:
     for gl in sch.global_labels:
         key = _coord_key(gl.x, gl.y)
         label_groups.setdefault(gl.text, []).append(key)
+    # Hierarchical labels name/unify nets within this sheet exactly like
+    # labels do (cross-sheet connection happens via the parent's sheet pins).
+    for hl in getattr(sch, 'hierarchical_labels', []):
+        key = _coord_key(hl.x, hl.y)
+        label_groups.setdefault(hl.text, []).append(key)
 
     # Power symbols act like global labels
     for comp in sch.components:
@@ -917,6 +940,8 @@ def _check_dangling_wires(sch):
         occupied.add(_coord_key(lbl.x, lbl.y))
     for gl in sch.global_labels:
         occupied.add(_coord_key(gl.x, gl.y))
+    for hl in getattr(sch, 'hierarchical_labels', []):
+        occupied.add(_coord_key(hl.x, hl.y))
 
     # Junction positions
     for j in sch.junctions:

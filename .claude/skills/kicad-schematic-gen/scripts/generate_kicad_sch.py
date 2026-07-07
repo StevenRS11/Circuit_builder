@@ -127,6 +127,19 @@ class GlobalLabel:
 
 
 @dataclass
+class HierarchicalLabel:
+    """A hierarchical label — a port of a child sheet. When the sheet is
+    placed on a parent schematic, each hierarchical label becomes a sheet pin
+    on the sheet symbol's border. The interface mechanism of the block
+    library (ROADMAP W1)."""
+    text: str
+    x: float
+    y: float
+    shape: str = "bidirectional"  # input | output | bidirectional | tri_state | passive
+    rotation: float = 0
+
+
+@dataclass
 class Junction:
     x: float
     y: float
@@ -153,6 +166,7 @@ class KicadSchematic:
         self.wires: list[Wire] = []
         self.labels: list[Label] = []
         self.global_labels: list[GlobalLabel] = []
+        self.hierarchical_labels: list[HierarchicalLabel] = []
         self.junctions: list[Junction] = []
         self.no_connects: list[NoConnect] = []
         self._pwr_counter = 0
@@ -1772,7 +1786,20 @@ class KicadSchematic:
         # Global labels have a shape box — wider than plain text
         bbox = self._text_bbox(text + "  ", sx, sy, rotation)  # extra padding for shape
         self._register_rect(bbox)
-    
+
+    def add_hierarchical_label(self, text, x, y, shape="bidirectional", rotation=0):
+        """Add a hierarchical label — a port of this sheet (block interface).
+
+        Connects only through the parent's sheet pins (never leaks like a
+        global label). shape: input | output | bidirectional | tri_state |
+        passive — the direction shown on the parent's sheet symbol.
+        """
+        sx, sy = snap_to_grid(x), snap_to_grid(y)
+        self.hierarchical_labels.append(
+            HierarchicalLabel(text, sx, sy, shape, rotation))
+        bbox = self._text_bbox(text + "  ", sx, sy, rotation)
+        self._register_rect(bbox)
+
     def add_junction(self, x, y):
         """Add a wire junction."""
         self.junctions.append(Junction(snap_to_grid(x), snap_to_grid(y)))
@@ -1914,6 +1941,32 @@ class KicadSchematic:
 
         self.add_wire(x, y, end_x, end_y)
         self.add_label(name, end_x, end_y, rotation)
+
+    def hlabel_at_pin(self, reference, pin, name, shape="bidirectional",
+                      direction="auto", length=5.08):
+        """Add a hierarchical label (sheet port) connected to a component pin
+        via a wire stub — the block-interface counterpart of label_at_pin.
+
+        A hierarchical label anchored at a wire end points *into* the wire, so
+        its rotation is the opposite of a plain label's for the same stub
+        direction (KiCad convention: rotation 0 = text extends left of the
+        anchor for hierarchical labels).
+        """
+        x, y = self.get_pin_position(reference, pin)
+
+        if direction == "auto":
+            dx, dy = self.get_pin_stub_direction(reference, pin)
+        else:
+            _dir_map = {"right": (1, 0), "left": (-1, 0),
+                        "up": (0, -1), "down": (0, 1)}
+            dx, dy = _dir_map.get(direction, (1, 0))
+
+        end_x = snap_to_grid(x + dx * length)
+        end_y = snap_to_grid(y + dy * length)
+        rotation = self._DIRECTION_TO_ROTATION.get((dx, dy), 0)
+
+        self.add_wire(x, y, end_x, end_y)
+        self.add_hierarchical_label(name, end_x, end_y, shape, rotation)
 
     def power_at_pin(self, reference, pin, power_name, wire_len=5.08):
         """Place a named power symbol connected to a component pin.
@@ -3168,6 +3221,15 @@ class KicadSchematic:
             lines.append(f'      (at {fmt(gl.x)} {fmt(gl.y)} 0)')
             lines.append(f'      (effects (font (size 1.27 1.27)) hide)')
             lines.append(f'    )')
+            lines.append(f'  )')
+
+        # Hierarchical labels (sheet ports — the block interface)
+        for hl in self.hierarchical_labels:
+            lines.append(f'  (hierarchical_label "{hl.text}"')
+            lines.append(f'    (shape {hl.shape})')
+            lines.append(f'    (at {fmt(hl.x)} {fmt(hl.y)} {fmt(hl.rotation)})')
+            lines.append(f'    (effects (font (size 1.27 1.27)))')
+            lines.append(f'    (uuid "{_uuid()}")')
             lines.append(f'  )')
         
         lines.append(f'')

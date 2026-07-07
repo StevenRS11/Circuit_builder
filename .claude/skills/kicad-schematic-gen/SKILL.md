@@ -287,6 +287,16 @@ extracted pinout). The main thread collates the rows and presents them at the ga
 carries intrinsic fields forward **from the cards**, not by retyping. See recipe A in
 `references/subagents.md`.
 
+**Check the proven-block registry first (`blocks/` — see `blocks/README.md`).**
+Before sourcing a role from scratch, check whether a validated block already
+covers it (e.g. a load-cell front-end). A block's parts arrive with bench
+provenance (`validated_boards.yaml`), a verified port contract, and a
+self-contained sheet — stronger evidence than any datasheet citation. Still
+re-confirm *sourceability* per the rubric (stock goes stale even when designs
+don't). Until the engine composes sheets automatically (roadmap W1b), a block
+is placed manually in KiCad (place sheet → Import Sheet Pins) or its BOM/
+netlist fragments are folded into the stage documents.
+
 **What Claude does (per role):**
 1. For each functional role in the spec (regulators, ICs, sensors, connectors), identify **2-3 candidate parts**
 2. Check `parts.preferred` (and the `connectors` / `preferred_regulators` lists) first — any matching part gets automatic candidate status, but still verify it's currently PCBway-sourceable

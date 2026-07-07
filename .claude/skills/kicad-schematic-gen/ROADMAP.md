@@ -12,7 +12,16 @@ unblock everything; the validation loop (W2) comes before the block library
 because it *produces* the blocks; W3 (layout verify) is deliberately last and
 designed after the block schema exists.
 
-Status: **A1 DONE, A2 DONE, W2 infrastructure DONE (2026-07-06).** W2 shipped:
+Status: **A1 DONE, A2 DONE, W2 infrastructure DONE, W1a DONE (2026-07-06).**
+W1a shipped: `HierarchicalLabel` support through the whole stack (builder
+`hlabel_at_pin`/`add_hierarchical_label`, save-emission, loader parse, netlist
+extraction, dangling-wire check), `blocks/` registry + `CircuitBlocks.pretty`
+promotion, `extract_block.py` (port contract explicit; declared port overrides
+internal classification; power nets can't be ports; self-verifies and removes
+the bundle on failure), `check_block.py` (standalone validation, port/rail/BOM
+parity, two-source dependency policy, TODO-judgment warnings). **Pending W1a
+close-out: the one-shot NAU7802 proof** — needs the DualScale board files;
+then W1b (engine composes sheets) / bulk seeding per the order below. W2 shipped:
 `templates/10_bringup.md` + `templates/10_field_report.md`,
 `references/promotion.md`, `validated_boards.yaml` (seeded with battery_3s
 v3.0 failure + lessons and v3.1 in-bringup), `scripts/check_ledger.py`

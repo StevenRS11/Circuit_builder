@@ -129,6 +129,18 @@ sch.label_at_pin("R6", "2", "FB_NET")
 sch.label_at_pin("R7", "1", "FB_NET")
 ```
 
+**For block sheet ports (hierarchical labels — W1a block library):**
+```python
+# A port of a child sheet: becomes a sheet pin when the sheet is placed
+# on a parent. shape: input | output | bidirectional | tri_state | passive
+sch.hlabel_at_pin("U1", "3", "SDA", shape="bidirectional")
+sch.add_hierarchical_label("DRDY", x, y, shape="output")  # low-level form
+```
+Hierarchical labels name/unify nets within the sheet exactly like local
+labels; they cross sheets only via the parent's sheet pins (unlike global
+labels, they never leak). Used by `extract_block.py`; the validator and
+netlist extractor understand them.
+
 **Rules:**
 - Process **every pin in every net**. No exceptions, no shortcuts.
 - Use the **exact net name** from the YAML as the label text.
