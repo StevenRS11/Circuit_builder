@@ -27,8 +27,17 @@ Inputs:
                           R2: { satisfied_by: [U2],     evidence: "..." }
   bom.md             Stage 3 BOM (flat or full table). Source of the component refs.
 
+Proven-block evidence (ROADMAP W1c): a requirement satisfied by a composed registry
+block cites the token `block:{name}` in satisfied_by (e.g. `block:nau7802_dual_loadcell`).
+The checker verifies the block exists in the blocks/ registry (error `unknown_block`
+otherwise), and treats the block's components — re-annotated into per-instance ranges
+by the Stage 6 engine (U2 -> U102/U202, +k*100) — as cited, so they don't trip the
+orphan check. Bench provenance ("validated on DualScale rev3") goes in `evidence`; a
+[CRITICAL] requirement still requires it.
+
 CLI:
   python check_requirements.py spec.md traceability.yaml bom.md [--json] [--strict]
+      [--blocks-dir DIR]   # registry override (default: sibling blocks/)
 Exit code 0 = pass, 1 = errors (or warnings under --strict).
 """
 
@@ -54,6 +63,14 @@ _BLOCK_PREFIXES = {"U", "Q", "J", "SW", "K", "M"}
 # (e.g. protection handled by the pack BMS, or "no on-board balancing per spec"). These
 # are accepted without BOM validation but still require cited evidence.
 _EXTERNAL_TOKENS = {"EXTERNAL", "OFF-BOARD", "N/A", "BY-DESIGN"}
+
+# Proven-block evidence token: `block:{registry_name}` (W1c). Verified against the
+# blocks/ registry instead of the BOM.
+_BLOCK_TOKEN_RE = re.compile(r"^block:(.+)$", re.I)
+
+# Default registry location — sibling of scripts/ (same convention as generate_from_data).
+DEFAULT_BLOCKS_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), os.pardir, "blocks")
 
 # A spec requirement line: "- R12. text" / "* R3: text" / "- R7 text".
 _REQ_RE = re.compile(r"^\s*[-*]\s*R(\d+)\b[.:]?\s*(.*)$")
@@ -142,18 +159,73 @@ def _ref_prefix(ref):
     return m.group(1).upper() if m else ""
 
 
+_REF_SPLIT_RE = re.compile(r"^([A-Za-z]+)(\d+)$")
+
+
+def load_block_registry(blocks_dir=None):
+    """Load the proven-block registry: {block_name: set(component refs)}.
+
+    Reads each blocks/{name}/block.yaml `refs:` list. A missing/empty registry
+    returns {} — block:{name} citations then fail as unknown_block.
+    """
+    blocks_dir = blocks_dir or DEFAULT_BLOCKS_DIR
+    registry = {}
+    if not os.path.isdir(blocks_dir):
+        return registry
+    for entry in sorted(os.listdir(blocks_dir)):
+        contract = os.path.join(blocks_dir, entry, "block.yaml")
+        if not os.path.isfile(contract):
+            continue
+        with open(contract, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        name = str(data.get("name", entry))
+        registry[name] = {str(r) for r in (data.get("refs") or [])}
+    return registry
+
+
+def _block_instance_refs(block_refs, bom_refs):
+    """BOM refs that belong to a composed instance of a block.
+
+    The Stage 6 engine re-annotates block refs into per-instance ranges
+    (U2 -> U102/U202: +k*100, k >= 1 — see generate_from_data._instance_ref_maps).
+    A BOM ref is covered if stripping some positive multiple of 100 lands on a
+    block ref. Manually placed sheets whose refs KiCad re-annotated arbitrarily
+    are NOT covered — cite those refs directly.
+    """
+    parsed_block = []
+    for ref in block_refs:
+        m = _REF_SPLIT_RE.match(ref)
+        if m:
+            parsed_block.append((m.group(1).upper(), int(m.group(2))))
+    covered = set()
+    for ref in bom_refs:
+        m = _REF_SPLIT_RE.match(ref)
+        if not m:
+            continue
+        prefix, num = m.group(1).upper(), int(m.group(2))
+        for bp, bn in parsed_block:
+            if prefix == bp and num > bn and (num - bn) % 100 == 0:
+                covered.add(ref)
+                break
+    return covered
+
+
 # ─── Check ───────────────────────────────────────────────────────────
-def check_requirements(spec_reqs, trace, bom_entries):
+def check_requirements(spec_reqs, trace, bom_entries, registry_blocks=None):
     """Verify the traceability matrix is complete and consistent.
 
     Args:
         spec_reqs: dict rid -> SpecRequirement (from the spec).
         trace:     dict rid -> TraceEntry (Claude-authored matrix).
         bom_entries: list of BomEntry (from the BOM).
+        registry_blocks: {block_name: set(refs)} from load_block_registry();
+            None means no registry is available, so any block:{name} citation
+            fails as unknown_block.
     """
     issues = []
     bom_refs = {e.reference for e in bom_entries}
     cited_refs = set()
+    registry_blocks = registry_blocks or {}
 
     # 1. Every spec requirement must be traced; [CRITICAL] must carry evidence.
     for rid, req in sorted(spec_reqs.items(), key=lambda kv: int(kv[0][1:])):
@@ -167,7 +239,8 @@ def check_requirements(spec_reqs, trace, bom_entries):
                 rid))
             continue
         cited_refs.update(r for r in entry.satisfied_by
-                          if r.upper() not in _EXTERNAL_TOKENS)
+                          if r.upper() not in _EXTERNAL_TOKENS
+                          and not _BLOCK_TOKEN_RE.match(r))
         if req.critical and not entry.evidence:
             issues.append(ReqIssue(
                 "error", "critical_no_evidence",
@@ -175,10 +248,24 @@ def check_requirements(spec_reqs, trace, bom_entries):
                 f"evidence — a critical requirement must be justified, not asserted.",
                 rid))
 
-    # 2. Matrix references must exist in the BOM (no phantom/hallucinated refs).
-    for rid, entry in trace.items():
+    # 2. Matrix references must exist in the BOM (no phantom/hallucinated refs);
+    #    block:{name} citations must exist in the registry, and their composed
+    #    instances' re-annotated refs count as cited.
+    for rid, entry in sorted(trace.items()):
         for ref in entry.satisfied_by:
             if ref.upper() in _EXTERNAL_TOKENS:
+                continue
+            bm = _BLOCK_TOKEN_RE.match(ref)
+            if bm:
+                block_name = bm.group(1).strip()
+                if block_name not in registry_blocks:
+                    issues.append(ReqIssue(
+                        "error", "unknown_block",
+                        f"{rid} cites '{ref}', but no block named '{block_name}' "
+                        f"exists in the blocks/ registry.", rid))
+                else:
+                    cited_refs.update(_block_instance_refs(
+                        registry_blocks[block_name], bom_refs))
                 continue
             if ref not in bom_refs:
                 issues.append(ReqIssue(
@@ -247,6 +334,9 @@ def main(argv=None):
     ap.add_argument("bom", help="Stage 3 BOM markdown")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--strict", action="store_true", help="warnings also fail")
+    ap.add_argument("--blocks-dir", default=None,
+                    help="proven-block registry for block:{name} citations "
+                         "(default: the skill's blocks/ directory)")
     args = ap.parse_args(argv)
 
     spec_reqs = load_spec_requirements(args.spec)
@@ -254,7 +344,8 @@ def main(argv=None):
     with open(args.bom, "r", encoding="utf-8") as f:
         bom = load_bom_from_markdown(f.read())
 
-    result = check_requirements(spec_reqs, trace, bom)
+    result = check_requirements(spec_reqs, trace, bom,
+                                registry_blocks=load_block_registry(args.blocks_dir))
 
     if args.json:
         print(json.dumps(result_to_dict(result), indent=2))

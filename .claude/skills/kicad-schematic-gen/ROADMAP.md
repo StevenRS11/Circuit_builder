@@ -13,7 +13,19 @@ because it *produces* the blocks; W3 (layout verify) is deliberately last and
 designed after the block schema exists.
 
 Status: **A1 DONE, A2 DONE, W2 infrastructure DONE, W1a DONE (2026-07-06),
-W1b DONE (2026-07-07).** W1b shipped: layout YAML `blocks:` section
+W1b DONE (2026-07-07), W1c DONE (2026-07-07).** W1c shipped: Stage 2 is
+block-first (a registry block covering a role short-circuits its candidate
+fan-out; sourceability still re-checked; SKILL.md Stage 2), requirements
+traceability accepts `block:{name}` as satisfied_by evidence
+(`check_requirements.py` verifies the token against the registry —
+`unknown_block` error — and counts the instance's re-annotated refs, +k·100,
+as cited for the orphan check; template + Stage 3/7 docs updated), and the
+reviewer recognizes blocks on ingest (`kicad-board-context/scripts/
+match_blocks.py`: anchors on the block's silicon, grows net correspondence,
+reports component/port/rail maps + every deviation — value_mismatch /
+missing_component / nc_violated / extra_attachment / nets_merged_on_board /
+connectivity_mismatch — with block constraints surfaced for judgment; runs at
+every ingest, not a gate). 16 new tests. W1b shipped: layout YAML `blocks:` section
 (`{instance: {block, x, y, port_map, refdes_base?}}` + optional `blocks_dir:`),
 engine composition in `generate_from_data.py` (loads the registry bundle,
 clones `sheet.kicad_sch` per instance with refs re-annotated into per-instance
@@ -214,7 +226,7 @@ blocks** — extracted, not hand-invented, so provenance is real.
   This **also removes the reviewer's flat-only limitation** — shared infra.
 - Self-verify extends across the hierarchy (netlist verify sees through ports).
 
-### W1c: Pipeline + reviewer integration
+### W1c: Pipeline + reviewer integration — DONE 2026-07-07
 
 - **Stage 2 becomes block-first:** before the per-role candidate fan-out, check
   the registry — a proven block covering a role short-circuits sourcing for its

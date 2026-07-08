@@ -21,6 +21,13 @@
 # deliberate omission (e.g. protection handled by an external pack BMS), use the reserved
 # token EXTERNAL (still requires evidence). Leave satisfied_by EMPTY only to flag a
 # requirement the design genuinely does NOT yet satisfy.
+#
+# Proven-block evidence (W1c): a requirement covered by a composed registry block cites
+# `block:{name}` (e.g. block:nau7802_dual_loadcell). The checker verifies the block exists
+# in blocks/ (error unknown_block otherwise) and counts the instance's re-annotated refs
+# (U2 -> U102/U202) as cited. Put the bench provenance in evidence — "validated on
+# DualScale_Compact rev3, 2026-07-06 (validated_boards.yaml)" is the strongest evidence
+# a requirement can carry.
 
 requirements:
   R1:
@@ -32,4 +39,7 @@ requirements:
   # R3:
   #   satisfied_by: [EXTERNAL]    # met off-board (e.g. by the pack BMS)
   #   evidence: "..."
+  # R4:
+  #   satisfied_by: ["block:nau7802_dual_loadcell"]   # composed proven block (W1c)
+  #   evidence: "validated on DualScale_Compact, bench 2026-07-06 (validated_boards.yaml)"
   # …one entry per R# in the spec's Requirements Checklist.

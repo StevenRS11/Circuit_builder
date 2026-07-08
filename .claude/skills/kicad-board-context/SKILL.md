@@ -82,7 +82,25 @@ python {CTX}/summarize_pcb.py {board}.kicad_pcb -o claude_context/pcb_summary.ya
 
 # structural health of the schematic itself
 python {GEN}/validate_kicad_sch.py {board}.kicad_sch --json
+
+# proven-block recognition (W1c): which registry blocks live on this board, and
+# where the board deviates from the validated design
+python {CTX}/match_blocks.py claude_context/netlist.yaml --json
 ```
+
+**Block recognition is part of every ingest.** `match_blocks.py` matches
+netlist fragments against the generator's `blocks/` registry (anchored on the
+block's silicon, grown through net correspondence) and reports each recognized
+instance with its port→net map and **every deviation from the validated
+block** — "U3/C11-C14/R7 is your NAU7802 block as validated on DualScale,
+except C12 is 10nF where the block says 100nF" is the highest-value sentence
+brownfield review produces. The script only reads; *you* judge each deviation
+(bug, improvement, or accepted change — ask the user) and check the reported
+match against the block's `constraints:` (it surfaces them but cannot judge
+them — e.g. two recognized NAU7802 blocks on one I2C bus is a constraints
+violation the script won't call). Matches and deviations go in the findings
+doc and `reconstructed_intent.md` (a recognized block is `[CONFIRMED]`-grade
+structure: cite its ledger entry).
 
 Then write `claude_context/00_context_pack.md` from the template: what was
 extracted, from which files, at which hashes, with which warnings.
@@ -160,6 +178,10 @@ dated `findings/` doc (template in `templates/findings.md`).
 ### Mode: REVIEW ("look this over / audit my board")
 Run the deterministic analyzers that apply, then the answer-blind review:
 - `{GEN}/validate_kicad_sch.py` (already run at ingest) — structural health
+- `{CTX}/match_blocks.py` (already run at ingest) — recognized proven blocks:
+  review their *deviations* instead of re-reviewing their internals (the block
+  is bench-validated; the deviations are where this board differs from what
+  was validated), and check each block constraint against the board
 - `{GEN}/analyze_analog.py claude_context/netlist.yaml` — front-end completeness (needs class tags)
 - `{GEN}/analyze_pcb_si.py {board}.kicad_pcb --netlist claude_context/netlist.yaml` — routing vs sensitivity
 - `{GEN}/check_pcbway.py claude_context/bom_flat.md --json` — sourceability/assembly, MPN hygiene
@@ -243,6 +265,9 @@ before the engine baked fields, or hand-edited since):
 
 ### Mode: MODIFY ("add X / change Y on this board")
 Build/refresh the context pack, get `reconstructed_intent.md` confirmed, then
+check the recognition report first: a change *inside* a recognized block
+(component values, wiring) invalidates its bench provenance — surface the
+block's `constraints:` and ledger entry before planning it. Then
 **hand off to `kicad-schematic-gen`** at the right stage, using the pack's
 documents as the prior-stage inputs (they are format-identical):
 - new functional block → enter at Stage 1/2 with the intent doc as the spec

@@ -60,3 +60,19 @@ Pins" — every port appears as a sheet pin to wire. Rails connect globally via
 the power symbols inside. One-time per machine: register `CircuitBlocks` in
 the global fp-lib-table pointing at `blocks/footprints/CircuitBlocks.pretty`
 (ideally via a `${CIRCUIT_BUILDER}` path variable).
+
+**Blocks in the pipeline (W1c):**
+
+- **Stage 2 is block-first** — a role a registry block covers is
+  short-circuited: no candidate fan-out, evidence comes from the block's
+  bench provenance (`validated_boards.yaml`). Sourceability of the block's
+  BOM lines still gets re-checked (stock goes stale even when designs don't).
+- **Traceability accepts `block:{name}`** — a requirement met by a composed
+  block cites the token in `satisfied_by`; `check_requirements.py` verifies
+  the block exists and counts the instance's re-annotated refs as cited.
+- **The reviewer recognizes blocks** — the board-context skill's
+  `match_blocks.py` matches an ingested board's netlist fragments against
+  this registry and reports each instance + every deviation from the
+  validated design (changed values, missing parts, wired-NC pins, foreign
+  parts on internal nets), with the block's `constraints:` surfaced for
+  judgment.

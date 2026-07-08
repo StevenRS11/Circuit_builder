@@ -105,6 +105,83 @@ boards:
     blocks_extracted: [nau7802_dual_loadcell]
     field_reports: []   # pending: run the Stage-10 ritual retroactively with the user
 
+  # ── retroactive fleet seeding, 2026-07-07 (bench facts user-confirmed;
+  #    context packs live in each project's claude_context/ next to the
+  #    KiCad files under PaddleDNA-Circuits/projects/) ──────────────────
+
+  - board: CoF
+    rev: "DevKitC (CoF/CoF)"
+    status: retired
+    bench_date: null      # pre-ledger; user confirms "worked as built", date unrecorded
+    outputs_dir: "PaddleDNA-Circuits/projects/CoF/CoF (external repo)"
+    summary: >-
+      Earliest CoF (coefficient-of-friction) tester rev, ESP32-S3-DEVKITC-1
+      module + strain-gauge/screen/limit/button connectors. Fabbed, worked as
+      built, no bench failures. Superseded; the board file is stale vs the
+      schematic (PSU1 never pushed to PCB, deleted buck IC still on board,
+      U1 footprint lib renamed) — treat the schematic as truth if ever
+      revisited. Ingested 2026-07-07 (fleet seeding).
+    lessons: []
+    field_reports: []
+
+  - board: CoF
+    rev: "compact"
+    status: retired
+    bench_date: null
+    outputs_dir: "PaddleDNA-Circuits/projects/CoF_compact (external repo)"
+    summary: >-
+      ESP32-S3-ZERO compact rev of the CoF tester. Fabbed, worked as built,
+      no bench failures. Retired; the CoF machine moves to
+      pushbuttonDef_combined when it arrives. Hygiene notes in the context
+      pack: stale DRV8825 symbol cache, USBPD control-char value (known
+      lesson class, already encoded), no PCBWay identity fields (pre-bake
+      era — BAKE before any re-order).
+    lessons: []
+    field_reports: []
+
+  - board: CoF
+    rev: "connectors (final CoF rev)"
+    status: retired
+    bench_date: null
+    outputs_dir: "PaddleDNA-Circuits/projects/CoF_Connectors (external repo)"
+    summary: >-
+      Last CoF tester revision (ESP32-S3-ZERO, adds stepper connector J7).
+      Fabbed, worked as built, no bench failures. Retired in favor of the
+      combined board; same pre-bake hygiene notes as the compact rev.
+    lessons: []
+    field_reports: []
+
+  - board: pushbuttonDef
+    rev: "1"
+    status: validated
+    bench_date: null      # in service; user confirms "worked as built", date unrecorded
+    outputs_dir: "PaddleDNA-Circuits/projects/pushbuttonDef (external repo)"
+    summary: >-
+      ESP32-S3-ZERO deflection tester (pushbutton rev). Fabbed, worked as
+      built, currently IN SERVICE running the deflection machine until
+      pushbuttonDef_combined arrives. No bench failures reported.
+      Schematic-only project dir (no .kicad_pcb alongside).
+    lessons: []
+    field_reports: []
+
+  - board: pushbuttonDef_combined
+    rev: "combined"
+    status: in_bringup
+    bench_date: null      # boards in transit from fab (confirmed 2026-07-07)
+    outputs_dir: "PaddleDNA-Circuits/projects/pushbuttonDef_combined (external repo)"
+    summary: >-
+      Combined successor board: will run BOTH the CoF and deflection machines
+      on arrival. Only fleet board whose schematic validates clean. Carries a
+      single-channel NAU7802 load-cell front-end (same validated per-channel
+      topology as the nau7802_dual_loadcell block; SDA=GP11 SCL=GP10
+      DRDY=GP8) — recognized by match_blocks at ingest (17/25 of the dual
+      block; channel B absent by design). Candidate for a
+      nau7802_single_loadcell block extraction AFTER bringup (user: later).
+      Pre-bringup cleanups suggested: NC markers on U2 pins 4/5/10/11 (stub
+      wires today).
+    lessons: []
+    field_reports: []
+
 # ── template entry ───────────────────────────────────────────────────
 #  - board: {name}
 #    rev: "{rev}"

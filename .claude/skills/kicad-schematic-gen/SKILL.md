@@ -291,9 +291,16 @@ carries intrinsic fields forward **from the cards**, not by retyping. See recipe
 Before sourcing a role from scratch, check whether a validated block already
 covers it (e.g. a load-cell front-end). A block's parts arrive with bench
 provenance (`validated_boards.yaml`), a verified port contract, and a
-self-contained sheet — stronger evidence than any datasheet citation. Still
-re-confirm *sourceability* per the rubric (stock goes stale even when designs
-don't). The Stage 6 engine composes blocks automatically (W1b): declare each
+self-contained sheet — stronger evidence than any datasheet citation. **A role
+a block covers is short-circuited: it gets no per-role sourcing subagent and
+no candidate fan-out** — read the block's `block.yaml` (ports, rails,
+`constraints:`) and its ledger entry instead, and trace the requirement(s) it
+satisfies as `block:{name}` in the traceability matrix (W1c —
+`check_requirements.py` verifies the token against the registry and counts
+the instance's re-annotated refs as cited). Still re-confirm *sourceability*
+of the block's BOM lines per the rubric (stock goes stale even when designs
+don't) — sourcing drift is a finding about the block bundle, worth fixing in
+`blocks/{name}/bom.md`, not just the board. The Stage 6 engine composes blocks automatically (W1b): declare each
 instance in the layout YAML `blocks:` section and keep the block's parts OUT
 of the board netlist/BOM/placements — the bundle owns them, and the engine
 emits the merged whole-board `{out}_bom_flat.md` for Stage 9. Honor the
@@ -401,7 +408,7 @@ The moment the BOM exists, you have everything needed to check it against the sp
 ```bash
 python check_requirements.py {project_name}_01_specification.md {project_name}_07_traceability.yaml {project_name}_03_bom_flat.md
 ```
-At this stage the check answers **"did we *select* parts capable of every requirement?"** — the evidence is datasheet capability (you can't cite topology yet; that comes at Stage 7). **0 errors required.** A `[CRITICAL]` requirement with no part to satisfy it (`untraced_requirement`) means the *selection is wrong* — **go back to Stage 2 and reselect before building anything downstream.** This is exactly the gate that would have caught choosing a non-power-path charger against a spec that demanded one. (You'll re-run the same matrix at Stage 7 with the realized-topology evidence filled in.)
+At this stage the check answers **"did we *select* parts capable of every requirement?"** — the evidence is datasheet capability (you can't cite topology yet; that comes at Stage 7). A requirement covered by a composed registry block cites `block:{name}` in `satisfied_by` with the bench provenance as evidence (verified against the registry — see `templates/07_traceability.yaml`). **0 errors required.** A `[CRITICAL]` requirement with no part to satisfy it (`untraced_requirement`) means the *selection is wrong* — **go back to Stage 2 and reselect before building anything downstream.** This is exactly the gate that would have caught choosing a non-power-path charger against a spec that demanded one. (You'll re-run the same matrix at Stage 7 with the realized-topology evidence filled in.)
 
 **Output:** Completed `{project_name}_03_bom.md` + `{project_name}_03_sourcing.md` (PCBway sourcing sheet) + `{project_name}_07_traceability.yaml` (first pass).
 
@@ -843,7 +850,7 @@ Checks: every BOM entry exists in schematic, every schematic component exists in
 ```bash
 python check_requirements.py {project}_01_specification.md {project}_07_traceability.yaml {project}_03_bom_flat.md
 ```
-It flags untraced requirements, hallucinated refs, [CRITICAL] items lacking evidence, and unaccounted ICs/connectors. **0 errors required.** (It verifies the matrix is complete and consistent; *you* still write honest evidence — it can't judge whether a citation is true. Use `EXTERNAL` in `satisfied_by` for off-board items like a pack BMS; leave it empty only to flag a requirement the design genuinely doesn't meet.) Do this before the structural checklist below.
+It flags untraced requirements, hallucinated refs, [CRITICAL] items lacking evidence, unknown `block:{name}` citations, and unaccounted ICs/connectors. **0 errors required.** (It verifies the matrix is complete and consistent; *you* still write honest evidence — it can't judge whether a citation is true. Use `EXTERNAL` in `satisfied_by` for off-board items like a pack BMS; use `block:{name}` for a requirement met by a composed proven block, with its bench provenance as the evidence; leave it empty only to flag a requirement the design genuinely doesn't meet.) Do this before the structural checklist below.
 
 Then walk through the design review checklist (`templates/05_design_review_checklist.md`).
 

@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from check_requirements import (
     parse_spec_requirements, parse_traceability, check_requirements,
+    load_block_registry, _block_instance_refs,
 )
 from cross_check_bom import load_bom_from_markdown
 import yaml as _yaml
@@ -129,6 +130,93 @@ def test_passive_orphan_not_flagged():
     bom = load_bom_from_markdown(BOM + "| C9 | 100nF | F:F |\n")
     res = check_requirements(parse_spec_requirements(SPEC), _trace(GOOD_TRACE), bom)
     assert not any(i.rid == "C9" for i in res.warnings)
+
+
+# ─── Proven-block evidence (W1c) ─────────────────────────────────────
+# battery-side spec + a BOM whose U102/J104/J105 lines are a composed instance
+# of a registry block owning refs U2/J4/J5 (Stage 6 re-annotation: +100).
+BLOCK_SPEC = "- R1. x\n- R2. **[CRITICAL]** Measure both load cells.\n"
+BLOCK_BOM = """
+| Ref | Value | Footprint |
+|-----|-------|-----------|
+| U1 | ESP32-S3 | F:F |
+| U102 | NAU7802 | F:F |
+| J104 | LoadCell A | F:F |
+| J105 | LoadCell B | F:F |
+"""
+REGISTRY = {"nau7802_dual_loadcell": {"U2", "J4", "J5", "C2", "R2"}}
+
+
+def test_block_token_covers_instance_refs():
+    trace = _trace("""
+requirements:
+  R1: { satisfied_by: [U1], evidence: "x" }
+  R2: { satisfied_by: ["block:nau7802_dual_loadcell"], evidence: "validated on DualScale_Compact 2026-07-06" }
+""")
+    res = check_requirements(parse_spec_requirements(BLOCK_SPEC), trace,
+                             load_bom_from_markdown(BLOCK_BOM),
+                             registry_blocks=REGISTRY)
+    assert res.passed, [i.message for i in res.errors]
+    assert not any(i.check_name == "phantom_ref" for i in res.issues)
+    # The composed instance's re-annotated refs count as cited — no orphans.
+    assert not any(i.check_name == "orphan_part" for i in res.warnings)
+
+
+def test_unknown_block_is_error():
+    trace = _trace("""
+requirements:
+  R1: { satisfied_by: [U1], evidence: "x" }
+  R2: { satisfied_by: ["block:no_such_block"], evidence: "x" }
+""")
+    res = check_requirements(parse_spec_requirements(BLOCK_SPEC), trace,
+                             load_bom_from_markdown(BLOCK_BOM),
+                             registry_blocks=REGISTRY)
+    assert not res.passed
+    assert any(i.check_name == "unknown_block" and i.rid == "R2"
+               for i in res.errors)
+
+
+def test_block_token_without_registry_is_error():
+    # registry_blocks=None (no registry available) — the citation can't be verified.
+    trace = _trace("""
+requirements:
+  R1: { satisfied_by: [U1], evidence: "x" }
+  R2: { satisfied_by: ["block:nau7802_dual_loadcell"], evidence: "x" }
+""")
+    res = check_requirements(parse_spec_requirements(BLOCK_SPEC), trace,
+                             load_bom_from_markdown(BLOCK_BOM))
+    assert not res.passed
+    assert any(i.check_name == "unknown_block" for i in res.errors)
+
+
+def test_block_token_still_requires_critical_evidence():
+    trace = _trace("""
+requirements:
+  R1: { satisfied_by: [U1], evidence: "x" }
+  R2: { satisfied_by: ["block:nau7802_dual_loadcell"], evidence: "" }
+""")
+    res = check_requirements(parse_spec_requirements(BLOCK_SPEC), trace,
+                             load_bom_from_markdown(BLOCK_BOM),
+                             registry_blocks=REGISTRY)
+    assert not res.passed
+    assert any(i.check_name == "critical_no_evidence" and i.rid == "R2"
+               for i in res.errors)
+
+
+def test_instance_ref_math():
+    block_refs = {"U2", "C11", "J4"}
+    bom_refs = {"U102", "U202", "C111", "J104",   # instances (+100, +200)
+                "U2",                              # verbatim block ref: NOT covered (k>=1)
+                "U103", "C12", "R101"}             # wrong number/prefix: not covered
+    covered = _block_instance_refs(block_refs, bom_refs)
+    assert covered == {"U102", "U202", "C111", "J104"}
+
+
+def test_load_block_registry_reads_real_registry():
+    # The in-repo registry ships nau7802_dual_loadcell — the loader must see it.
+    reg = load_block_registry()
+    assert "nau7802_dual_loadcell" in reg
+    assert "U2" in reg["nau7802_dual_loadcell"]
 
 
 def test_external_token_accepted_with_evidence():
