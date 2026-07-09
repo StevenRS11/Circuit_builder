@@ -62,11 +62,19 @@ boards:
     bench_date: null      # user to confirm post-rework bench results
     outputs_dir: outputs_battery_3s
     summary: >-
-      Corrective rev: U1 pin 1 moved to its own VDD_CH224K net with 1uF (C4
-      bumped 100nF->1uF), R28 1k series on pin 8 VBUS sense, 4 distributor
-      codes corrected, all PCBWay identity fields baked. In-hand v3.0 boards
-      salvaged by lifting pin 1 + tacking 1uF to GND. Awaiting bench
-      confirmation before promotion to validated.
+      Proposed corrective rev — **DISPROVEN as the fix (2026-07-08), do not
+      build on it.** It moved U1 pin 1 (VDD) to its own VDD_CH224K net with 1uF
+      (C4 100nF->1uF), added R28 1k series on pin 8 (VBUS sense), and corrected
+      4 distributor codes + baked PCBWay identity fields. But a bench test
+      feeding a clean 3.3 V straight to VDD STILL failed to negotiate USB-PD:
+      the VDD feed is necessary but NOT sufficient — a SECOND fault exists past
+      pin 1. The "isolate VDD + 1uF" theory is not the fix. Leading second-fault
+      suspect: CC1/CC2 routed through the clone U6 (USBLC6-2SC6), a USB-2.0
+      data-line ESD array mis-applied to the PD CC comm lines (reference wires
+      CC direct to the connector). See
+      outputs_battery_3s_as_built/claude_context/findings/2026-07-08_ch224k_second_fault_cc_path.md.
+      The BOM/sourcing corrections in this rev remain valid; the topology fix
+      does not. Nothing promoted.
     lessons: []
     field_reports: []
 
