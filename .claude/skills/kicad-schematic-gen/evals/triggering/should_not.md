@@ -11,6 +11,9 @@ One prompt per `- ` line:
 - Write a Python script to parse a folder of CSV files and total a column.
 - Refactor this React component to reduce re-renders.
 - Explain how a MOSFET works as a switch.
+- Review my existing charger.kicad_sch and explain why it will not start.
+- Import the SnapEDA symbol and footprint zip I downloaded.
+- Calculate the resistor needed for a 10 mA LED from 5 V.
 - What's the capital of France?
 - Fix the failing test in my authentication flow.
 - Summarize the key points of this contract PDF.

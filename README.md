@@ -28,10 +28,9 @@ kind where correctness lives in part choice, pinouts, and a few dozen nets.
 The reviewer will *ingest* a big board without complaint, but its analyzers and the
 reconstructed-intent reasoning are built for the left column. On the right column you'll
 get honest structural checks and not much judgment. Additional reviewer caveats: KiCad
-7/8 format, flat schematics (hierarchical sheets aren't traversed), and hand-built
-schematics with a stale embedded symbol cache can over-report connectivity errors until
-they're re-saved in KiCad (recognition guidance ships in the skill's
-`references/ingest.md`).
+7/8 format and hand-built schematics with a stale embedded symbol cache; registered-library
+fallback handles most stale-cache cases, while unresolved library IDs remain explicit
+findings (recognition guidance ships in `references/ingest.md`).
 
 ## Design philosophy
 
@@ -189,7 +188,7 @@ python $CTX/reconcile.py board.kicad_sch --bom claude_context/bom_flat.md --pcb 
 ## Testing
 
 ```bash
-# Everything (both skills + evals) — 534 tests
+# Everything (both skills + evals)
 python -m pytest .claude/skills/ -v
 
 # Designer: unit + integration (byte-stable golden snapshot) and eval tiers 0/0b/1

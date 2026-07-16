@@ -192,9 +192,9 @@ Run the deterministic analyzers that apply, then the answer-blind review:
 - **Structural design review as an answer-blind subagent** (recipe D in
   `../kicad-schematic-gen/references/subagents.md`): hand it the extracted
   netlist, the schematic, the cached datasheets, and
-  `../kicad-schematic-gen/references/design_review.md`. Honor its verdicts —
-  same rules as the generator skill: never overturn a failure with your own
-  reasoning.
+  `../kicad-schematic-gen/references/design_review.md`. A failure blocks progression;
+  validate its frozen inputs, obtain a second answer-blind verdict if cited evidence
+  conflicts, and surface unresolved disagreement.
 
 ### Mode: DEBUG ("it doesn't work / X misbehaves")
 Hypothesis-driven, with the context pack as ground truth:
@@ -303,9 +303,9 @@ documents as the prior-stage inputs (they are format-identical):
 4. **Findings are durable.** Dated docs in `findings/`, including ruled-out
    hypotheses and drift the user chose to accept. Next session starts by
    reading them.
-5. **Subagent verdicts are honored** — same doctrine as the generator skill
-   (`../kicad-schematic-gen/references/subagents.md`): fix inputs and re-run,
-   or surface to the user; never overturn with main-thread reasoning.
+5. **Subagent failures block progression** — follow the generator conflict protocol
+   (`../kicad-schematic-gen/references/subagents.md`): validate inputs, re-run, obtain
+   a second independent verdict for conflicting evidence, or surface to the user.
 6. **Enrichment is proportional.** Don't build fact cards for 40 parts to
    answer a question about one connector. The pack grows incrementally across
    sessions.

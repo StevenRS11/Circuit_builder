@@ -14,3 +14,4 @@ One prompt per `- ` line:
 - I need a buck converter power supply circuit for 12V to 5V at 2A.
 - Design a sensor board around an I2C accelerometer with a 3.3V regulator.
 - Lay out a battery charger using the TP4056 with a USB-C connector and status LEDs.
+- Create a new KiCad draft for a simple RP2040 sensor controller.

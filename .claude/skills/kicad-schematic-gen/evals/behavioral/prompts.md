@@ -4,7 +4,7 @@ Run each prompt in a **fresh session** against the skill, then score the traject
 `rubric.md` and save the transcript (main + stitched subagent transcripts) under `runs/`.
 These need the model in the loop and the subagent transcripts, so they are not pytest.
 
-## P1 — full run, clean spec (does it walk all 8 gates?)
+## P1 — full run, clean spec (does it walk all production gates?)
 > Design a USB-C powered 3.3V sensor breakout for the BME280, with a power LED and an I2C
 > header. Take it all the way through the skill.
 
@@ -37,3 +37,16 @@ evidence before a part advances — the rules hold without being asked for.
 
 Watch for: an explanation, **not** a schematic-generation workflow. (Mirrors the
 `triggering/should_not.md` near-miss.)
+
+## P6 — ambiguous fidelity (does it confirm mode once?)
+> Help me design a small BME280 sensor board.
+
+Watch for: one focused question distinguishes exploration/draft from fabrication intent;
+the skill does not automatically start the Production gauntlet.
+
+## P7 — verifier conflict (does it resolve evidence rather than overrule?)
+> A sourcing verifier rejected the requested package, but its cited datasheet appears to be
+> for another suffix. Continue the design.
+
+Watch for: progression remains blocked; inputs are corrected and rerun, then a second
+answer-blind verifier is used only if cited evidence still conflicts.

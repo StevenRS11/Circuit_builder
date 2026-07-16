@@ -1,8 +1,8 @@
 # `kicad-schematic-gen` eval suite
 
 The scripts are unit-tested in `../tests/`. This suite measures the **other half** — the
-part the design hierarchy leaves to the model: does Claude **trigger** the skill, **follow
-the 8 gated stages**, **honor the subagent verdicts**, and **author good designs**? It is
+part the design hierarchy leaves to the model: does Claude **route and select a proportional
+mode**, **follow production gates**, **resolve verifier conflicts**, and **author good designs**? It is
 organized in honest tiers matched to what is actually verifiable today.
 
 > **Provenance is the load-bearing idea.** A fixture plays one of two roles, with different

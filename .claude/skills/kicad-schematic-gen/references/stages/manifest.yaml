@@ -1,0 +1,23 @@
+schema_version: 1
+modes:
+  explore: ["01", "02"]
+  draft: ["01", "02", "03", "04", "05", "05b", "06", "07"]
+  production: ["01", "02", "03", "04", "05", "05b", "06", "07", "08", "09", "10"]
+stages:
+  "01": {name: specification, dependencies: [], approval: user, preferences: [design, assembly], references: [templates/01_specification.md]}
+  "02": {name: sourcing, dependencies: ["01"], approval: user, preferences: [parts, assembly], references: [templates/02_component_candidates.md, references/subagents.md]}
+  "03": {name: bom, dependencies: ["01", "02"], approval: user, preferences: [parts, assembly], references: [templates/03_bom.md], validators: [check_pcbway.py, check_requirements.py]}
+  "04": {name: implementation, dependencies: ["02", "03"], approval: user, preferences: [design], references: [templates/04_implementation_reference.md, references/subagents.md]}
+  "05": {name: dc_analysis, dependencies: ["03", "04"], approval: automatic, preferences: [design], validators: [analyze_dc.py]}
+  "05b": {name: netlist, dependencies: ["04", "05"], approval: automatic, preferences: [design], references: [templates/05b_netlist.yaml], validators: [analyze_analog.py]}
+  "06": {name: schematic, dependencies: ["03", "04", "05b"], approval: automatic, preferences: [design, layout], references: [references/layout_authoring.md, references/kicad_format.md], validators: [check_cards.py, generate_from_data.py]}
+  "07": {name: verification, dependencies: ["01", "03", "04", "05b", "06"], approval: automatic, preferences: [], references: [references/design_review.md, references/subagents.md], validators: [validate_kicad_sch.py, verify_netlist.py, cross_check_bom.py, check_requirements.py]}
+  "08": {name: layout_review, dependencies: ["06", "07"], approval: user, preferences: [layout], references: [references/analog_layout.md], validators: [analyze_pcb_si.py]}
+  "09": {name: fabrication, dependencies: ["03", "07", "08"], approval: automatic, preferences: [assembly, layout], validators: [check_pcbway.py, bom_verify.py, generate_pcbway_bom.py, generate_fab_outputs.py]}
+  "10": {name: bringup, dependencies: ["07", "09"], approval: user, preferences: [design], references: [references/promotion.md, templates/10_bringup.md, templates/10_field_report.md], validators: [check_ledger.py]}
+invalidation:
+  specification: ["01", "02", "03", "04", "05", "05b", "06", "07", "08", "09", "10"]
+  part_identity: ["02", "03", "04", "05", "05b", "06", "07", "08", "09", "10"]
+  passive_value: ["03", "04", "05", "05b", "06", "07", "08", "09", "10"]
+  placement: ["06", "07", "08", "09", "10"]
+  board: ["08", "09", "10"]

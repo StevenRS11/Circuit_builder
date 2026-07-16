@@ -23,9 +23,9 @@ transcript in `runs/`.
 ## Subagent doctrine & verdict honoring (the core of P2)
 - [ ] Research / `[CRITICAL]` verification / pinout / review ran as **subagents** with frozen
       inputs (datasheet paths), not in the biased main thread.
-- [ ] A `[CRITICAL]` `fails` / pinout disagreement was **honored** — not overturned by the main
-      thread's own reasoning. The response to a failing check was: fix inputs & re-run,
-      reselect/redesign, or surface to the user — never "proceed anyway."
+- [ ] A failure blocked progression. The main thread checked frozen input identity,
+      corrected and reran incomplete inputs, and used a second answer-blind verifier when
+      cited evidence genuinely conflicted; unresolved conflicts were surfaced to the user.
 - [ ] Verdicts + citations were **persisted** into the durable artifacts (traceability YAML /
       review doc), not left only in chat.
 

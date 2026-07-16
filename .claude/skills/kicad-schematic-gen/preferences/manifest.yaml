@@ -1,0 +1,7 @@
+schema_version: 1
+legacy_source: ../preferences.yaml
+concerns:
+  design: [defaults, power_rails, design_rules]
+  parts: [connectors, parts]
+  assembly: [assembly, pcbway_schematic]
+  layout: [pcb_fab]

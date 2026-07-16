@@ -216,16 +216,17 @@ main thread must not then re-introduce that bias when reading the answer.
 
 ### Respecting the verify results (recipes B, C, D)
 
-- **A verdict is authoritative within its scope. Do not overturn a `fails` /
-  `insufficient_evidence` / disagreement with your own reasoning.** That reasoning is
-  exactly the biased input the subagent was spawned to bypass; "the checker was too
-  strict" is not a finding. A failing check has only **three** legitimate responses:
+- **A failing verdict blocks progression but is not infallible.** Confirm the frozen
+  datasheet, package, and revision. Correct incomplete inputs and re-run. If cited
+  evidence still conflicts, dispatch a second answer-blind verifier, persist both
+  verdicts, and surface unresolved disagreement to the user. Never silently proceed.
+  Legitimate responses are:
   1. **The inputs were wrong/incomplete** (wrong or truncated datasheet cached, missing
      page) → fix the *frozen inputs* and **re-run the same check**.
   2. **The selection/design is wrong** → reselect (Stage 2) or fix the data and
      regenerate (Stage 6/7). A `[CRITICAL]` `fails` is a hard disqualification.
-  3. **Genuine ambiguity** → surface the verdict **and its citation** to the user and
-     let them decide. Never a silent "proceed anyway."
+  3. **Genuine ambiguity** → obtain a second independent verdict, then surface both
+     cited results to the user if they remain unresolved.
 - **Persist every verdict + citation into the durable artifact**, not just the chat:
   `[CRITICAL]` verdicts → the `evidence` field of `{project}_07_traceability.yaml`;
   pinout diffs → a note in the implementation reference; review findings →
