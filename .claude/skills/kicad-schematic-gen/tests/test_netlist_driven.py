@@ -77,13 +77,15 @@ class TestGetPinStubDirection:
         assert dx == 0 and dy == 1, f"R pin 2 should face down, got ({dx},{dy})"
 
     def test_resistor_rotated_90(self, sch):
-        """Resistor rotated 90° CCW: pin 1 (top) rotates to the right, pin 2 to the left."""
+        """Resistor rotated 90° CCW (KiCad convention): pin 1 (top) rotates to
+        the LEFT, pin 2 to the right — verified against KiCad's own netlist
+        (pushbuttonDef C1 @90°: pin 1/+ lands on the left wire)."""
         sch.place_component("Device:R", "R1", "10k", 50, 50, rotation=90,
                             footprint="Resistor_SMD:R_0805_2012Metric")
         dx1, dy1 = sch.get_pin_stub_direction("R1", "1")
         dx2, dy2 = sch.get_pin_stub_direction("R1", "2")
-        assert (dx1, dy1) == (1, 0), f"R1 pin 1 @90° should face right, got ({dx1},{dy1})"
-        assert (dx2, dy2) == (-1, 0), f"R1 pin 2 @90° should face left, got ({dx2},{dy2})"
+        assert (dx1, dy1) == (-1, 0), f"R1 pin 1 @90° should face left, got ({dx1},{dy1})"
+        assert (dx2, dy2) == (1, 0), f"R1 pin 2 @90° should face right, got ({dx2},{dy2})"
 
     def test_led_pin_directions(self, sch):
         """LED: pin 1 (K) is left, pin 2 (A) is right."""

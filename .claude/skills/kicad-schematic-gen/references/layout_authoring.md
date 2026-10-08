@@ -185,8 +185,9 @@ openable, not optimal routing.
 - **Rotate multi-pin connectors so wire stubs don't collide.** A vertical N-pin connector wired to
   GND on its *top* pin will drop the GND symbol straight down through the rows below it, colliding
   with a lower pin's stub (an unintended short — `missing_junction`). Rotating it so pins face
-  **down** (`rotation: 270`) gives every pin its own drop column. This is the J3 balance-header
-  lesson: `J3: { lib_id: "Connector_Generic:Conn_01x04", x: 555, y: 60, rotation: 270 }`.
+  **down** (`rotation: 90` — KiCad rotates counter-clockwise, so a connector whose pins face
+  left at 0° faces down at 90°) gives every pin its own drop column. This is the J3 balance-header
+  lesson: `J3: { lib_id: "Connector_Generic:Conn_01x04", x: 555, y: 60, rotation: 90 }`.
 
 ---
 
@@ -203,7 +204,7 @@ python generate_from_data.py {project}_05b_netlist.yaml {project}_03_bom_flat.md
 |------------|---------|---------------------|
 | `no placement` / `no BOM line` / `not declared in netlist` | the three docs disagree on the component set | reconcile netlist / BOM / layout |
 | `symbol pin-set != netlist pin-set` | an IC's `symbols:` numbers don't match the netlist | fix the pin numbers (usually the symbol; sometimes the netlist) |
-| `missing_junction` | two stubs collided — an unintended wire touch (short class) | rotate/move the offending part (often a connector → `rotation: 270`) |
+| `missing_junction` | two stubs collided — an unintended wire touch (short class) | rotate/move the offending part (often a connector → `rotation: 90`) |
 | `floating_pin` / completeness | a pin isn't in any net or no-connect | fix the netlist (Stage 5b), not the layout |
 | BOM cross-check error | value/footprint mismatch | fix the BOM (Stage 3) |
 

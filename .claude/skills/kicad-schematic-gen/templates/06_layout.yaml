@@ -43,7 +43,7 @@ placements:
   C1: { lib_id: "Device:C", x: 80, y: 100 }
   C2: { lib_id: "Device:C", x: 120, y: 100 }
   J1: { lib_id: "Connector_Generic:Conn_01x02", x: 60, y: 100 }
-  # J2: { lib_id: "Connector_Generic:Conn_01x04", x: 200, y: 100, rotation: 270 }
+  # J2: { lib_id: "Connector_Generic:Conn_01x04", x: 200, y: 100, rotation: 90 }
   #   ^ Rotating a multi-pin connector so pins face DOWN gives each pin its own
   #     drop column — use this when a GND tie would otherwise cross a sibling stub.
 

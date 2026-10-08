@@ -366,6 +366,7 @@ def load_kicad_sch(filepath, resolve_from_libraries=True,
             continue  # Skip if no lib_id (it's a lib_symbols sub-symbol)
 
         cx, cy, crot = _parse_at(comp_node)
+        cmirror = _get_atom(comp_node, 'mirror', '')  # (mirror x|y)
         unit = int(_get_atom(comp_node, 'unit', '1'))
 
         # Properties
@@ -406,7 +407,7 @@ def load_kicad_sch(filepath, resolve_from_libraries=True,
 
         comp = PlacedComponent(
             lib_id=lib_id, reference=ref, value=value,
-            x=cx, y=cy, rotation=crot,
+            x=cx, y=cy, rotation=crot, mirror=cmirror,
             footprint=footprint, datasheet=datasheet,
             unit=unit, in_bom=in_bom, on_board=on_board,
             extra_properties=extra_props,

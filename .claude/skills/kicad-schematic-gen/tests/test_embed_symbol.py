@@ -134,7 +134,7 @@ power_nets: ["+3V3"]
 placements:
   U1: {{ lib_id: "Custom:FOO", x: 100, y: 100 }}
   R1: {{ lib_id: "Device:R", x: 130, y: 100 }}
-  J1: {{ lib_id: "Connector_Generic:Conn_01x02", x: 160, y: 100, rotation: 270 }}
+  J1: {{ lib_id: "Connector_Generic:Conn_01x02", x: 160, y: 100, rotation: 90 }}
 symbols:
   "Custom:FOO":
     from_library: true

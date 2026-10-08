@@ -675,7 +675,7 @@ and placement + IC pin-side arrangement in the layout YAML. Nothing is retyped.
 
    d. **Author `placements:`** — a grid by functional block (ICs on a band, passives banded
       below, connectors at edges). Rotate multi-pin connectors so their stubs don't collide
-      (the J3 balance-header → `rotation: 270` lesson in the reference).
+      (the J3 balance-header → `rotation: 90` lesson in the reference).
 
    e. **Compose proven blocks with `blocks:` (W1b).** If Stage 2 selected a registry
       block, declare each instance here instead of authoring its parts:

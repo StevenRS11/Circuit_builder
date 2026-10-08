@@ -18,6 +18,9 @@ Checks (each pair only when both artifacts are given):
                 a schematic symbol exists with the same value on the board
                 footprint (the "plugin reads the BOARD, F8 was never run"
                 failure that produced a wrong uploaded BOM).
+  SCH ↔ PCB   — connectivity: every schematic net (≥2 pins) lands on exactly
+  (nets)        one board net and vice versa, compared pin→pad as a
+                partition (net names may legitimately differ).
 
 Deterministic, verify-only, offline. It never decides which side is right —
 that is a judgment call made with the user (usually: the schematic is the
@@ -32,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 
@@ -148,6 +152,77 @@ def reconcile_sch_pcb(sch_text: str, pcb_text: str):
     return issues
 
 
+# ─── SCH ↔ PCB connectivity (pin → pad net partition) ───────────────
+
+_PAD_NET = re.compile(r'\(net (?:\d+ )?"([^"]*)"\)')
+
+
+def _parse_pcb_pad_nets(pcb_text: str):
+    """(ref, pad_number) -> board net name, for every pad that has a net."""
+    out = {}
+    for b in re.split(r"\n\s*\(footprint ", pcb_text)[1:]:
+        ref = re.search(r'\(property "Reference" "([^"]+)"', b)
+        if not ref:
+            continue
+        for chunk in re.split(r"\(pad ", b)[1:]:
+            num = re.match(r'"([^"]*)"', chunk)
+            net = _PAD_NET.search(chunk)
+            if num and net and num.group(1):
+                out[(ref.group(1), num.group(1))] = net.group(1)
+    return out
+
+
+def reconcile_connectivity(sch_path: str, pcb_text: str,
+                           project_dir=None, extra_sym=None):
+    """Compare schematic connectivity with the board's pad nets.
+
+    Net *names* differ legitimately between the two (auto-named nets,
+    sheet prefixes), so this compares the *partition*: every schematic net
+    must land on exactly one board net and vice versa. A split or merge
+    means the board and schematic disagree about what is connected — a
+    stale board (F8 not run after a wiring edit) or, as found on the
+    2026-10-08 review, a pin-geometry bug in the extractor itself (pins 1/2
+    swapped on rotated parts). Field checks alone pass such a board.
+    """
+    from extract_netlist import extract
+    doc, _summary = extract(sch_path, project_dir=project_dir,
+                            extra_sym=extra_sym)
+    sch_of = {}
+    for name, net in doc["nets"].items():
+        if len(net["pins"]) < 2:
+            continue  # floating / NC pins carry no connectivity claim
+        for p in net["pins"]:
+            sch_of[(p["ref"], str(p["pin"]))] = name
+    brd_of = _parse_pcb_pad_nets(pcb_text)
+
+    s2b, b2s = {}, {}
+    for key, sn in sch_of.items():
+        bn = brd_of.get(key)
+        if bn is None:
+            continue  # ref missing on board is reported by reconcile_sch_pcb
+        s2b.setdefault(sn, set()).add(bn)
+        b2s.setdefault(bn, set()).add(sn)
+
+    def pins_of(sn):
+        return ", ".join(f"{r}.{p}→{brd_of.get((r, p), '?')}"
+                         for (r, p), n in sorted(sch_of.items()) if n == sn)
+
+    issues = []
+    for sn in sorted(s2b):
+        if len(s2b[sn]) > 1:
+            issues.append(DriftIssue(
+                "error", "sch-pcb", "net_split",
+                f"schematic net '{sn}' lands on {len(s2b[sn])} board nets "
+                f"{sorted(s2b[sn])}: {pins_of(sn)}"))
+    for bn in sorted(b2s):
+        if len(b2s[bn]) > 1:
+            issues.append(DriftIssue(
+                "error", "sch-pcb", "net_merge",
+                f"board net '{bn}' joins schematic nets {sorted(b2s[bn])} "
+                f"(stale board, or a short drawn on the board only)"))
+    return issues
+
+
 # ─── report ──────────────────────────────────────────────────────────
 
 def format_text(issues, sch_path, bom_path=None, pcb_path=None):
@@ -182,6 +257,11 @@ def main():
     ap.add_argument("schematic", help="path to .kicad_sch")
     ap.add_argument("--bom", help="path to flat BOM markdown (bom_flat.md)")
     ap.add_argument("--pcb", help="path to .kicad_pcb")
+    ap.add_argument("--project-dir",
+                    help="project dir for symbol-library resolution "
+                         "(connectivity check)")
+    ap.add_argument("--sym-lib", action="append", default=[],
+                    help="extra symbol library '[NICK=]PATH' (repeatable)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -197,7 +277,13 @@ def main():
             issues += reconcile_sch_bom(args.schematic, f.read())
     if args.pcb:
         with open(args.pcb, "r", encoding="utf-8") as f:
-            issues += reconcile_sch_pcb(sch_text, f.read())
+            pcb_text = f.read()
+        issues += reconcile_sch_pcb(sch_text, pcb_text)
+        issues += reconcile_connectivity(
+            args.schematic, pcb_text,
+            project_dir=args.project_dir or os.path.dirname(
+                os.path.abspath(args.schematic)),
+            extra_sym=args.sym_lib)
 
     has_errors = any(i.severity == "error" for i in issues)
     if args.json:

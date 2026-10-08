@@ -26,14 +26,15 @@ def _expected_pin_pos(comp_x, comp_y, pin_sym_x, pin_sym_y, rotation=0):
 
     In symbol space: pin is at (pin_sym_x, pin_sym_y).
     After Y-inversion: (pin_sym_x, -pin_sym_y).
-    After rotation (degrees CCW): apply rotation matrix.
+    After rotation (degrees CCW *on screen*, as KiCad does — which in the
+    Y-down schematic frame is a rotation by -theta).
     Final: (comp_x + rotated_x, comp_y + rotated_y), snapped.
     """
     import math
     inv_x, inv_y = pin_sym_x, -pin_sym_y
     rad = math.radians(rotation)
-    rot_x = inv_x * math.cos(rad) - inv_y * math.sin(rad)
-    rot_y = inv_x * math.sin(rad) + inv_y * math.cos(rad)
+    rot_x = inv_x * math.cos(rad) + inv_y * math.sin(rad)
+    rot_y = -inv_x * math.sin(rad) + inv_y * math.cos(rad)
     return (_snap(comp_x + rot_x), _snap(comp_y + rot_y))
 
 
@@ -267,8 +268,10 @@ class TestRotation:
         s = sch.get_pin_position("Q1", "2")
         d = sch.get_pin_position("Q1", "3")
 
-        # At 90 degrees: Gate sym(-2.54, 0) -> inv(-2.54, 0) -> rot(0, -2.54)
-        # Gate should be above (lower Y) the center after 90 CCW rotation
+        # 90° CCW on screen: west -> south, north -> west, south -> east.
+        # Gate (west, sym -2.54,0) ends up BELOW the centre (higher Y);
+        # drain (north) ends up LEFT; source (south) ends up RIGHT.
+        assert g[1] > 80 and d[0] < s[0]
         assert g == _expected_pin_pos(100, 80, -2.54, 0, rotation=90)
         assert s == _expected_pin_pos(100, 80, 0, -2.54, rotation=90)
         assert d == _expected_pin_pos(100, 80, 0, 2.54, rotation=90)

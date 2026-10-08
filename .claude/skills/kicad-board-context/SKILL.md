@@ -128,7 +128,10 @@ python {CTX}/reconcile.py {board}.kicad_sch --bom claude_context/bom_flat.md --p
 
 Checks refs / values / footprints between schematic and board, schematic and
 BOM, and **MPN field propagation** (schematic field present but absent on the
-board footprint = the "F8 never ran" failure that once uploaded a wrong BOM).
+board footprint = the "F8 never ran" failure that once uploaded a wrong BOM),
+and **connectivity**: every schematic net must land on exactly one board net
+(pin→pad partition — `net_split` / `net_merge`). Pass `--project-dir` when the
+schematic uses project-local symbol libraries.
 If the user hands you an *external* BOM (their own spreadsheet/markdown), pass
 that as `--bom` too — drift between their BOM and their schematic is exactly
 the kind of thing they need to know first.

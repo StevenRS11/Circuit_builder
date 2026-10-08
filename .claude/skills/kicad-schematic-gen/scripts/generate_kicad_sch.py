@@ -53,6 +53,30 @@ def snap_to_grid(val, grid=1.27):
     return round(round(val / grid) * grid, 4)
 
 
+def sym_to_sch(sx, sy, rotation=0, mirror=""):
+    """Map a symbol-space offset (Y up) to a schematic-space offset (Y down).
+
+    Matches KiCad: the symbol is rotated COUNTER-clockwise on screen by
+    ``rotation`` degrees, then mirrored in schematic space — ``mirror="x"``
+    flips about the horizontal axis (y -> -y), ``"y"`` about the vertical
+    axis (x -> -x).  Works for points and direction vectors alike.
+
+    Sanity check (bench-verified against KiCad's own netlist): a Device:C
+    pin 1 at symbol (0, +3.81) with rotation 90 lands at (-3.81, 0) — left
+    of the symbol origin.
+    """
+    r = math.radians(rotation)
+    c, s = math.cos(r), math.sin(r)
+    ix, iy = sx, -sy                  # Y-inversion into schematic space
+    dx = ix * c + iy * s              # CCW on screen == -theta in Y-down
+    dy = -ix * s + iy * c
+    if mirror == "x":
+        dy = -dy
+    elif mirror == "y":
+        dx = -dx
+    return dx, dy
+
+
 def fmt(val):
     """Format a float for KiCad output — remove trailing zeros but keep precision."""
     if val == int(val):
@@ -91,6 +115,7 @@ class PlacedComponent:
     x: float
     y: float
     rotation: float = 0
+    mirror: str = ""          # "", "x" or "y" — KiCad (mirror x|y)
     footprint: str = ""
     datasheet: str = "~"
     unit: int = 1
@@ -1087,17 +1112,10 @@ class KicadSchematic:
             (x_min_s, y_min_s), (x_max_s, y_min_s),
             (x_min_s, y_max_s), (x_max_s, y_max_s),
         ]
-        comp_rad = math.radians(comp.rotation)
-        cos_r = math.cos(comp_rad)
-        sin_r = math.sin(comp_rad)
-
         schem_xs = []
         schem_ys = []
         for sx_c, sy_c in corners_sym:
-            # Y-inversion then rotation (same transform as get_pin_position)
-            ix, iy = sx_c, -sy_c
-            rx = ix * cos_r - iy * sin_r
-            ry = ix * sin_r + iy * cos_r
+            rx, ry = sym_to_sch(sx_c, sy_c, comp.rotation, comp.mirror)
             schem_xs.append(comp.x + rx)
             schem_ys.append(comp.y + ry)
 
@@ -1314,7 +1332,7 @@ class KicadSchematic:
         if lib_sym and lib_sym.pins:
             for pin in lib_sym.pins:
                 px, py = self._transform_point_to_schematic(
-                    pin.x, pin.y, comp.x, comp.y, comp.rotation
+                    pin.x, pin.y, comp.x, comp.y, comp.rotation, comp.mirror
                 )
                 # Expand envelope to include pin tips
                 x_min = min(x_min, px)
@@ -1359,14 +1377,10 @@ class KicadSchematic:
         length = self.PIN_KEEPOUT_LENGTH
         hw = self.PIN_KEEPOUT_HALF_WIDTH
 
-        comp_rad = math.radians(comp.rotation)
-        cos_r = math.cos(comp_rad)
-        sin_r = math.sin(comp_rad)
-
         for pin in lib_sym.pins:
             # Pin tip position in schematic space
             tip_x, tip_y = self._transform_point_to_schematic(
-                pin.x, pin.y, comp.x, comp.y, comp.rotation
+                pin.x, pin.y, comp.x, comp.y, comp.rotation, comp.mirror
             )
 
             # Outward direction: opposite to the direction pin stub points
@@ -1379,10 +1393,8 @@ class KicadSchematic:
             dx_sym = math.cos(out_rad)
             dy_sym = math.sin(out_rad)
 
-            # Y-inversion then component rotation
-            dx_inv, dy_inv = dx_sym, -dy_sym
-            dx_sch = dx_inv * cos_r - dy_inv * sin_r
-            dy_sch = dx_inv * sin_r + dy_inv * cos_r
+            dx_sch, dy_sch = sym_to_sch(dx_sym, dy_sym, comp.rotation,
+                                        comp.mirror)
 
             # Round to axis-aligned (components only use 0/90/180/270)
             dx_sch = round(dx_sch)
@@ -1456,14 +1468,10 @@ class KicadSchematic:
                     return True
         return False
 
-    def _transform_point_to_schematic(self, sym_x, sym_y, comp_x, comp_y, rotation):
+    def _transform_point_to_schematic(self, sym_x, sym_y, comp_x, comp_y,
+                                      rotation, mirror=""):
         """Transform a point from symbol space to schematic space."""
-        comp_rad = math.radians(rotation)
-        cos_r = math.cos(comp_rad)
-        sin_r = math.sin(comp_rad)
-        ix, iy = sym_x, -sym_y  # Y-inversion
-        rx = ix * cos_r - iy * sin_r
-        ry = ix * sin_r + iy * cos_r
+        rx, ry = sym_to_sch(sym_x, sym_y, rotation, mirror)
         return snap_to_grid(comp_x + rx), snap_to_grid(comp_y + ry)
 
     def _find_clear_placement(self, envelope, x, y, body_rect=None):
@@ -1878,14 +1886,7 @@ class KicadSchematic:
         dx_sym = math.cos(out_rad)
         dy_sym = math.sin(out_rad)
 
-        # Y-inversion then component rotation
-        comp_rad = math.radians(comp.rotation)
-        cos_r = math.cos(comp_rad)
-        sin_r = math.sin(comp_rad)
-
-        dx_inv, dy_inv = dx_sym, -dy_sym
-        dx_sch = dx_inv * cos_r - dy_inv * sin_r
-        dy_sch = dx_inv * sin_r + dy_inv * cos_r
+        dx_sch, dy_sch = sym_to_sch(dx_sym, dy_sym, comp.rotation, comp.mirror)
 
         # Round to nearest cardinal direction
         dx_sch = round(dx_sch)
@@ -2156,7 +2157,7 @@ class KicadSchematic:
                 if lib_sym:
                     for pin in lib_sym.pins:
                         px, py = self._transform_point_to_schematic(
-                            pin.x, pin.y, comp.x, comp.y, comp.rotation
+                            pin.x, pin.y, comp.x, comp.y, comp.rotation, comp.mirror
                         )
                         connected_points.add((round(px, 4), round(py, 4)))
 
@@ -2233,9 +2234,6 @@ class KicadSchematic:
 
         for candidate_rot in [0, 90, 180, 270]:
             score = 0
-            rot_rad = math.radians(candidate_rot)
-            cos_r = math.cos(rot_rad)
-            sin_r = math.sin(rot_rad)
 
             for pin in lib_sym.pins:
                 if pin.number not in pin_constraints:
@@ -2251,10 +2249,8 @@ class KicadSchematic:
                 dx_sym = math.cos(out_rad)
                 dy_sym = math.sin(out_rad)
 
-                # Transform through Y-inversion + candidate rotation
-                dx_inv, dy_inv = dx_sym, -dy_sym
-                dx_sch = dx_inv * cos_r - dy_inv * sin_r
-                dy_sch = dx_inv * sin_r + dy_inv * cos_r
+                dx_sch, dy_sch = sym_to_sch(dx_sym, dy_sym, candidate_rot,
+                                            comp.mirror)
 
                 # Dot product: 1.0 = perfect alignment
                 dot = round(dx_sch) * dx_want + round(dy_sch) * dy_want
@@ -2437,13 +2433,8 @@ class KicadSchematic:
         dx_sym = math.cos(out_rad)
         dy_sym = math.sin(out_rad)
 
-        # Y-inversion + component rotation
-        comp_rad = math.radians(comp.rotation)
-        cos_r = math.cos(comp_rad)
-        sin_r = math.sin(comp_rad)
-        dx_inv, dy_inv = dx_sym, -dy_sym
-        dx_sch = round(dx_inv * cos_r - dy_inv * sin_r)
-        dy_sch = round(dx_inv * sin_r + dy_inv * cos_r)
+        dx_sch, dy_sch = sym_to_sch(dx_sym, dy_sym, comp.rotation, comp.mirror)
+        dx_sch, dy_sch = round(dx_sch), round(dy_sch)
 
         if dx_sch > 0:
             return "right"
@@ -2874,19 +2865,9 @@ class KicadSchematic:
         tip_x = pin.x
         tip_y = pin.y
         
-        # Transform by component rotation (in schematic space, Y is inverted)
-        comp_rad = math.radians(comp.rotation)
-        cos_r = math.cos(comp_rad)
-        sin_r = math.sin(comp_rad)
-        
-        # In schematic space, Y is inverted relative to symbol space
-        # Symbol Y+ is up, Schematic Y+ is down
-        sym_x = tip_x
-        sym_y = -tip_y  # Y inversion
-        
-        # Apply rotation
-        rot_x = sym_x * cos_r - sym_y * sin_r
-        rot_y = sym_x * sin_r + sym_y * cos_r
+        # Symbol space (Y up) -> schematic space (Y down), KiCad rotation
+        # direction (CCW) and mirror — see sym_to_sch.
+        rot_x, rot_y = sym_to_sch(tip_x, tip_y, comp.rotation, comp.mirror)
         
         abs_x = snap_to_grid(comp.x + rot_x)
         abs_y = snap_to_grid(comp.y + rot_y)
@@ -3199,6 +3180,8 @@ class KicadSchematic:
         lines.append(f'  (symbol')
         lines.append(f'    (lib_id "{comp.lib_id}")')
         lines.append(f'    (at {fmt(comp.x)} {fmt(comp.y)} {fmt(comp.rotation)})')
+        if comp.mirror:
+            lines.append(f'    (mirror {comp.mirror})')
         lines.append(f'    (unit {comp.unit})')
         lines.append(f'    (in_bom {bom})')
         lines.append(f'    (on_board {board})')

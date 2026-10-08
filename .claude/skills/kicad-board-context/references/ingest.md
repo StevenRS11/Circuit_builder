@@ -108,6 +108,7 @@ are unaffected.
 | `footprint_drift` | footprint swapped during layout | usually board is intentional → schematic field is stale |
 | `field_not_propagated` | **F8 never ran after fields were added** | run F8; this is the wrong-uploaded-BOM class |
 | `field_drift` | fields edited after last sync | run F8 after confirming schematic is right |
+| `net_split` / `net_merge` | schematic and board disagree on *what is connected* (pin→pad partition) | stale board → F8; if F8 is fresh, suspect the extractor (the 2026-10-08 rotation bug showed up exactly like this) and confirm with `kicad-cli sch export netlist` |
 | sch-bom drift vs a user-supplied BOM | hand-edited spreadsheet | regenerate the BOM from source, never patch the sheet |
 
 Reconcile reports; the **user** arbitrates. Record accepted drift in
