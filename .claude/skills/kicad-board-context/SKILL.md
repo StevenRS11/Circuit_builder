@@ -1,6 +1,6 @@
 ---
 name: kicad-board-context
-description: Build a trustworthy reasoning context from an EXISTING KiCad project (.kicad_sch / .kicad_pcb / BOM), then reason about the board — review it, debug it, explain it, pick replacement parts, or plan modifications. Use this skill whenever the user points at a board that already exists: "review my board", "why doesn't this circuit work", "look at this schematic", "check this KiCad project", "what does this board do", "help me debug", "replace this part on my board", "add X to my existing board". For designing a NEW board or schematic from a description, use kicad-schematic-gen instead — this skill can hand off to it once context is built.
+description: Build a trustworthy reasoning context from an EXISTING KiCad project (.kicad_sch / .kicad_pcb / BOM), then reason about the board — review it, debug it, explain it, pick replacement parts, or plan modifications. Use this skill whenever the user points at a board that already exists: "review my board", "why doesn't this circuit work", "look at this schematic", "check this KiCad project", "what does this board do", "help me debug", "replace this part on my board", "add X to my existing board", "verify the files I uploaded to PCBWay". For designing a NEW board or schematic from a description, use kicad-schematic-gen instead — this skill can hand off to it once context is built.
 ---
 
 # KiCad Board Context — reason about boards that already exist
@@ -265,6 +265,31 @@ before the engine baked fields, or hand-edited since):
    heading to fab, the Stage-9 answer-blind live verification
    (`{GEN}/bom_verify.py`) is still the gate that catches a real-looking MPN
    that resolves to the wrong physical part.
+
+### Mode: VERIFY UPLOAD ("check what I sent to PCBWay")
+The order is built from the *uploaded files*, not the board — and the board
+keeps changing after the plugin runs. Check the package against the current
+`.kicad_pcb` (read-only):
+```bash
+python {CTX}/verify_pcbway_upload.py {board}.kicad_pcb --zip <uploaded>.zip     --bom BOM_<board>.xls --centroid Centroid_<board>.xls
+```
+(PCBWay's web form renames the plugin's `PCBWay_bom.csv` / `PCBWay_positions.csv`
+to `.xls`; they are still CSV. Pass the separately uploaded copies — the tool
+byte-compares them to the zip and checks the uploaded one if they differ.)
+- **gerbers**: each layer re-plotted with `kicad-cli` using the plugin's options
+  and compared line-for-line (timestamps stripped). "identical" means the
+  gerbers *are* the current board, regardless of file dates.
+- **drill**: every hole matched by diameter + position (units-agnostic).
+- **centroid / BOM**: every fitted placeable part present once, X/Y/rot/side
+  equal the board, quantity = designator count, MPN on every fitted line and
+  equal to the board's field, DNP column = board DNP.
+- **ipc**: IPC-D-356 nets equal the board's per pad (KiCad writes them
+  upper-cased and cut to the last 14 chars; refdes cut to 6).
+RESULT FAIL on any error. Re-export from the plugin, don't hand-edit the CSVs.
+It verifies *consistency*, not *correctness* — pair it with a REVIEW
+(DRC 0 unconnected, schematic parity 0, `reconcile.py --pcb` clean).
+Also confirm on the order form what the files can't say: layer count,
+thickness, and the outline size from `pcb_summary.yaml`.
 
 ### Mode: MODIFY ("add X / change Y on this board")
 Build/refresh the context pack, get `reconstructed_intent.md` confirmed, then
